@@ -25,7 +25,7 @@ public class DatabaseInitializer
         var indexes = new[]
         {
             new CreateIndexModel<Product>(
-                Builders<Product>.IndexKeys.Ascending(p => p.Category),
+                Builders<Product>.IndexKeys.Ascending(p => p.CategoryId),
                 new CreateIndexOptions { Name = "idx_product_category" }
             ),
             new CreateIndexModel<Product>(

@@ -18,5 +18,5 @@ public class Category
     [BsonElement("description")]
     public string? Description { get; set; }
 
-    public BsonDocument Payload { get; set; }
+    public BsonDocument? Payload { get; set; }
 }
