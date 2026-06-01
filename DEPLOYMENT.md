@@ -349,6 +349,109 @@ public int Version { get; set; } = 0;
 
 ---
 
+## Разбор реальных ошибок при деплое
+
+### 1. `error CS1061: 'Product' does not contain a definition for 'Category'`
+
+**Где:** GitHub Actions → Job: Build & Test
+**Причина:** `DatabaseInitializer.cs` обращался к `p.Category`, а поле в модели называется `p.CategoryId`. Ошибка не видна локально если проект не собирался после переименования поля.
+**Урок:** CI/CD выявляет такие ошибки раньше, чем они попадают в прод. Именно для этого существует Job "Build & Test".
+**Исправление:** `p.Category` → `p.CategoryId`
+
+---
+
+### 2. `warning CS8618: Non-nullable property 'Payload'`
+
+**Где:** GitHub Actions → Job: Build & Test
+**Причина:** `BsonDocument Payload` объявлен как non-nullable, но не инициализирован в конструкторе. В `Nullable` режиме компилятор требует явного указания nullable типов.
+**Урок:** Включённый `<Nullable>enable</Nullable>` в .csproj заставляет явно думать о null-safety на уровне типов.
+**Исправление:** `BsonDocument Payload` → `BsonDocument? Payload`
+
+---
+
+### 3. `buildx failed: Cache export is not supported for the docker driver`
+
+**Где:** GitHub Actions → Job: Docker Build & Push
+**Причина:** `type=gha` кэш требует `docker-container` driver для buildx. GitHub Actions runner по умолчанию использует `docker` driver, который не поддерживает экспорт кэша.
+**Урок:** `docker buildx` имеет несколько драйверов (`docker`, `docker-container`, `kubernetes`). `docker-container` — изолированный BuildKit daemon в контейнере, он поддерживает все возможности включая кэш.
+**Исправление:** Добавить шаг `docker/setup-buildx-action@v3` до сборки — он создаёт builder с `docker-container` driver.
+
+---
+
+### 4. `Unable to connect to the server: dial tcp 127.0.0.1:57012`
+
+**Где:** GitHub Actions → Job: Deploy
+**Причина:** Self-hosted runner использовал `kubectl` с активным контекстом `minikube` (порт 57012), но minikube был остановлен. Kubernetes реально работал в Docker Desktop на другом порту (6443).
+**Урок:** `kubectl config get-contexts` показывает все доступные кластеры. Активный контекст (`*`) определяет куда идут команды. Разные инструменты (minikube, Docker Desktop, k3d) создают разные контексты в `~/.kube/config`.
+**Исправление:** Добавить `kubectl config use-context docker-desktop` в начало deploy job.
+
+---
+
+### 5. `ParserError: Missing expression after unary operator '--'`
+
+**Где:** GitHub Actions → Job: Deploy
+**Причина:** Self-hosted runner на Windows использует PowerShell как shell по умолчанию. В PowerShell `\` не является символом переноса строки (это разделитель путей). Команды `kubectl` с многострочным `\` синтаксисом не парсятся.
+**Урок:** GitHub Actions runner наследует shell операционной системы. Linux → bash, Windows → PowerShell. Bash-синтаксис (`\` для переноса) несовместим с PowerShell.
+**Исправление:** `defaults: run: shell: bash` на уровне job — принудительно использует Git Bash на Windows.
+
+---
+
+### 6. `deployments.apps "mongo-api" not found`
+
+**Где:** GitHub Actions → Job: Deploy → шаг `kubectl set image`
+**Причина:** Шаг `kubectl apply` не включал `06-api-deployment.yaml` и `07-api-service.yaml`. `kubectl set image` пытался обновить deployment который никогда не был создан.
+**Урок:** `kubectl set image` — это команда обновления СУЩЕСТВУЮЩЕГО ресурса. Если ресурс не создан через `kubectl apply`, `set image` упадёт с NotFound. Правильный порядок: сначала `apply` (idempotent создание/обновление), потом `set image`.
+**Исправление:** Добавить `kubectl apply -f k8s/06-api-deployment.yaml` и `07-api-service.yaml` в шаг apply.
+
+---
+
+### 7. `unauthorized: HEAD ghcr.io/...` + `invalid reference format: repository name must be lowercase`
+
+**Где:** Kubernetes → Pod → ImagePullBackOff
+**Причина 1:** GHCR пакет приватный по умолчанию. Kubernetes не имеет credentials для его скачивания.
+**Причина 2:** `${{ github.repository_owner }}` возвращает `Anton1990` с заглавной буквой. Docker требует lowercase имена образов: `ghcr.io/Anton1990/...` → невалидно.
+**Урок:** Docker image reference регламентирован OCI Distribution Spec — имя репозитория должно быть lowercase. `github.repository_owner` возвращает отображаемое имя пользователя, которое может иметь любой регистр.
+**Исправление 1:** Создать `imagePullSecret` в K8s с `GITHUB_TOKEN` и прописать `imagePullSecrets` в Deployment.
+**Исправление 2:** Хардкод lowercase: `IMAGE_NAME: anton1990/mongo-api`.
+
+---
+
+### 8. `error: timed out waiting for the condition` (rollout status)
+
+**Где:** GitHub Actions → Job: Deploy → шаг `kubectl rollout status`
+**Причина:** Новый под API не мог стать Ready в течение 120 секунд. Причина — контейнер падал при старте потому что `DatabaseInitializer.InitializeAsync()` бросал исключение при попытке подключиться к MongoDB (которая ещё не была готова).
+**Урок:** Приложения в Kubernetes должны быть устойчивы к тому, что зависимости (БД, другие сервисы) могут быть недоступны при старте. Это называется "graceful degradation at startup". Kubernetes перезапустит под, но падение из-за недоступной зависимости — антипаттерн.
+**Исправление:** Обернуть `DatabaseInitializer.InitializeAsync()` в `try/catch` — приложение стартует даже если MongoDB недоступна, индексы создадутся при следующем рестарте.
+
+---
+
+### 9. MongoDB поды `0/1 Running` — StatefulSet rolling update застрял
+
+**Где:** Kubernetes → StatefulSet mongo
+**Причина:** Readiness probe `mongosh --eval "db.adminCommand('ping')"` падала на всех подах. При изменении spec StatefulSet делает rolling update начиная с наибольшего ordinal (mongo-4). Правило: следующий под обновляется только после того как предыдущий стал Ready. Если mongo-4 не становится Ready — вся цепочка останавливается. Классическая проблема "chicken-and-egg".
+**Урок:** StatefulSet rolling update имеет важное отличие от Deployment: строгий порядок и ожидание Ready перед следующим шагом. Неправильная readiness probe может заблокировать rolling update навсегда. Всегда проверяй probe локально перед деплоем.
+**Исправление:** Принудительное удаление всех подов (`kubectl delete pod`) — StatefulSet пересоздаёт их сразу с новым spec. Поменять probe с `mongosh exec` на `tcpSocket:27017` — более надёжна, не зависит от состояния replica set.
+
+---
+
+### 10. `Name or service not known: mongo-0.mongo-headless`
+
+**Где:** API pod → MongoDB Driver
+**Причина:** Поды MongoDB были `0/1 Running` (не Ready). Для headless Service DNS регистрирует только Ready поды в endpoints. Пока ни один под не прошёл readiness probe — DNS имена не резолвились.
+**Урок:** В Kubernetes DNS для headless Service (`clusterIP: None`) возвращает IP только Ready подов. Для StatefulSet подов есть исключение — индивидуальные DNS записи (`pod.svc.namespace`) создаются независимо от готовности. Но это работает только если поды ВООБЩЕ запущены. Если probe блокирует переход в Ready и приложение пытается подключиться к DNS имени — получаем "Name not known".
+**Исправление:** После исправления readiness probe и пересоздания подов — DNS заработал.
+
+---
+
+### 11. Replica set не инициализирован → API не может писать в MongoDB
+
+**Где:** API → MongoDB Driver → CreateIndexes
+**Причина:** MongoDB запущена в режиме replica set (`--replSet rs0`), но `rs.initiate()` не был вызван. В неинициализированном replica set нет Primary ноды. MongoDB Driver требует Primary для операций записи. `DatabaseInitializer` пытается создать индексы (write operation) → timeout.
+**Урок:** `mongod --replSet rs0` только запускает MongoDB в режиме ожидания replica set конфигурации. Без `rs.initiate()` кластер не функционирует. Init Job — это одноразовая операция которую нужно выполнить один раз после первого деплоя StatefulSet.
+**Исправление:** Запустить `04-mongo-init-job.yaml` вручную после первого деплоя MongoDB.
+
+---
+
 ## Полезные ссылки
 
 - Swagger UI: `http://localhost:30080/swagger`
