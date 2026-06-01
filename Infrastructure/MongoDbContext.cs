@@ -13,14 +13,22 @@ public class MongoDbContext
 {
     private readonly IMongoDatabase _database;
 
+    public IMongoClient Client { get; }
+
     public MongoDbContext(IOptions<MongoDbSettings> settings)
     {
-        var client = new MongoClient(settings.Value.ConnectionString);
-        _database = client.GetDatabase(settings.Value.DatabaseName);
+        Client = new MongoClient(settings.Value.ConnectionString);
+        _database = Client.GetDatabase(settings.Value.DatabaseName);
     }
 
     public IMongoCollection<Product> Products =>
         _database.GetCollection<Product>("products");
+
+    public IMongoCollection<Order> Orders =>
+        _database.GetCollection<Order>("orders");
+
+    public IMongoCollection<Category> Categories =>
+        _database.GetCollection<Category>("categories");
 
     public IMongoCollection<Customer> Customers =>
         _database.GetCollection<Customer>("customers");

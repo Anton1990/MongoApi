@@ -1,0 +1,118 @@
+services:
+  mongo1:
+    image: mongo:7
+    hostname: mongo1
+    container_name: mongo1
+    command: mongod --replSet rs0 --bind_ip_all
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo1_data:/data/db
+    networks:
+      - mongonet
+
+  mongo2:
+    image: mongo:7
+    hostname: mongo2
+    container_name: mongo2
+    command: mongod --replSet rs0 --bind_ip_all
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongo2_data:/data/db
+    networks:
+      - mongonet
+
+  mongo3:
+    image: mongo:7
+    hostname: mongo3
+    container_name: mongo3
+    command: mongod --replSet rs0 --bind_ip_all
+    ports:
+      - "27019:27017"
+    volumes:
+      - mongo3_data:/data/db
+    networks:
+      - mongonet
+
+  mongo4:
+    image: mongo:7
+    hostname: mongo4
+    container_name: mongo4
+    command: mongod --replSet rs0 --bind_ip_all
+    ports:
+      - "27020:27017"
+    volumes:
+      - mongo4_data:/data/db
+    networks:
+      - mongonet
+
+  mongo5:
+    image: mongo:7
+    hostname: mongo5
+    container_name: mongo5
+    command: mongod --replSet rs0 --bind_ip_all
+    ports:
+      - "27021:27017"
+    volumes:
+      - mongo5_data:/data/db
+    networks:
+      - mongonet
+
+  # Инициализатор — запускается один раз, настраивает Replica Set и создаёт пользователя
+  mongo-init:
+    image: mongo:7
+    container_name: mongo-init
+    depends_on:
+      - mongo1
+      - mongo2
+      - mongo3
+      - mongo4
+      - mongo5
+    networks:
+      - mongonet
+    restart: "no"
+    entrypoint: >
+      bash -c "
+        echo 'Waiting for MongoDB nodes to start...'
+        sleep 10
+
+        echo 'Initializing Replica Set...'
+        mongosh --host mongo1:27017 --eval '
+          rs.initiate({
+            _id: \"rs0\",
+            members: [
+              { _id: 0, host: \"mongo1:27017\", priority: 2 },
+              { _id: 1, host: \"mongo2:27017\", priority: 1 },
+              { _id: 2, host: \"mongo3:27017\", priority: 1 },
+              { _id: 3, host: \"mongo4:27017\", priority: 1 },
+              { _id: 4, host: \"mongo5:27017\", priority: 1 }
+            ]
+          })
+        '
+
+        echo 'Waiting for Primary election...'
+        sleep 5
+
+        echo 'Creating admin user...'
+        mongosh --host mongo1:27017 --eval '
+          db.getSiblingDB(\"admin\").createUser({
+            user: \"admin\",
+            pwd: \"password123\",
+            roles: [{ role: \"root\", db: \"admin\" }]
+          })
+        '
+
+        echo 'Done! Replica Set is ready.'
+      "
+
+volumes:
+  mongo1_data:
+  mongo2_data:
+  mongo3_data:
+  mongo4_data:
+  mongo5_data:
+
+networks:
+  mongonet:
+    driver: bridge

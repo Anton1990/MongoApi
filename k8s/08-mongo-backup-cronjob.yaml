@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mongo-backup
+  namespace: mongoapi
+spec:
+  schedule: "* * * * *"              # каждую минуту (для теста)
+  # schedule: "0 2 * * *"           # каждую ночь в 02:00 (для prod)
+  concurrencyPolicy: Forbid          # не запускать новый если предыдущий ещё идёт
+  successfulJobsHistoryLimit: 3      # хранить последние 3 успешных job
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: mongo:7
+              command:
+                - bash
+                - -c
+                - |
+                  DATE=$(date +%Y%m%d_%H%M%S)
+                  echo "Starting backup $DATE..."
+
+                  mongodump \
+                    --host mongo-0.mongo-headless.mongoapi.svc.cluster.local:27017 \
+                    --gzip \
+                    --archive=/backup/backup_$DATE.gz
+
+                  echo "Backup $DATE completed."
+
+                  # Удаляем бэкапы старше 7 дней
+                  find /backup -name "*.gz" -mtime +7 -delete
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backup
+          volumes:
+            - name: backup-storage
+              hostPath:
+                path: /mnt/mongo-backups
+                type: DirectoryOrCreate

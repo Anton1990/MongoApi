@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo-api
+  namespace: mongoapi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo-api
+  template:
+    metadata:
+      labels:
+        app: mongo-api
+    spec:
+      containers:
+        - name: mongo-api
+          image: ghcr.io/anton1990/mongo-api:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: api-config
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"

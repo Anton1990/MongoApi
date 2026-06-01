@@ -10,6 +10,8 @@ builder.Services.Configure<MongoDbSettings>(
 builder.Services.AddSingleton<MongoDbContext>();
 builder.Services.AddSingleton<ProductService>();
 builder.Services.AddSingleton<CustomerService>();
+builder.Services.AddSingleton<CategoryService>();
+builder.Services.AddSingleton<OrderService>();
 builder.Services.AddSingleton<DatabaseInitializer>();
 
 builder.Services.AddControllers();

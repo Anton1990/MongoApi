@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+  namespace: mongoapi
+data:
+  MongoDbSettings__ConnectionString: >-
+    mongodb://mongo-0.mongo-headless:27017,mongo-1.mongo-headless:27017,mongo-2.mongo-headless:27017,mongo-3.mongo-headless:27017,mongo-4.mongo-headless:27017/?replicaSet=rs0
+  MongoDbSettings__DatabaseName: "MongoApiDb"
+  MongoDbSettings__ProductsCollection: "products"
+  MongoDbSettings__CustomersCollection: "customers"

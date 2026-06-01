@@ -1,0 +1,51 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mongo-init
+  namespace: mongoapi
+spec:
+  backoffLimit: 10
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mongo-init
+          image: mongo:7
+          command:
+            - bash
+            - -c
+            - |
+              set -e
+              HOST="mongo-0.mongo-headless.mongoapi.svc.cluster.local:27017"
+
+              echo "Waiting for mongo-0 to become available..."
+              until mongosh --host "$HOST" --eval "db.adminCommand('ping')" --quiet 2>/dev/null; do
+                echo "  not ready, retrying..."
+                sleep 3
+              done
+
+              echo "Checking if replica set already initialized..."
+              STATUS=$(mongosh --host "$HOST" --eval "rs.status().ok" --quiet 2>/dev/null || echo "0")
+              if [ "$STATUS" = "1" ]; then
+                echo "Replica set already initialized, skipping."
+                exit 0
+              fi
+
+              echo "Initiating replica set rs0..."
+              mongosh --host "$HOST" --eval "
+                rs.initiate({
+                  _id: 'rs0',
+                  members: [
+                    { _id: 0, host: 'mongo-0.mongo-headless.mongoapi.svc.cluster.local:27017', priority: 2 },
+                    { _id: 1, host: 'mongo-1.mongo-headless.mongoapi.svc.cluster.local:27017', priority: 1 },
+                    { _id: 2, host: 'mongo-2.mongo-headless.mongoapi.svc.cluster.local:27017', priority: 1 },
+                    { _id: 3, host: 'mongo-3.mongo-headless.mongoapi.svc.cluster.local:27017', priority: 1 },
+                    { _id: 4, host: 'mongo-4.mongo-headless.mongoapi.svc.cluster.local:27017', priority: 1 }
+                  ]
+                })
+              "
+
+              echo "Waiting for primary election (15s)..."
+              sleep 15
+
+              echo "Replica set initialized successfully."

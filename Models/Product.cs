@@ -18,12 +18,26 @@ public class Product
     [BsonElement("stock")]
     public int Stock { get; set; }
 
-    [BsonElement("category")]
-    public string Category { get; set; } = null!;
+    /// <summary>
+    /// Ссылка (Reference) на документ в коллекции "categories".
+    /// Хранится как ObjectId в MongoDB, в C# — как string.
+    /// </summary>
+    [BsonElement("categoryId")]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string CategoryId { get; set; } = null!;
 
     [BsonElement("isAvailable")]
     public bool IsAvailable { get; set; } = true;
 
     [BsonElement("createdAt")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Версия документа для Optimistic Concurrency.
+    /// При каждом UPDATE инкрементируется на 1.
+    /// Клиент должен передавать ту версию которую получил при чтении.
+    /// Если версия не совпадает — кто-то обновил документ раньше → 409 Conflict.
+    /// </summary>
+    [BsonElement("version")]
+    public int Version { get; set; } = 0;
 }
