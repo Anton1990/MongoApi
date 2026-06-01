@@ -13,6 +13,8 @@ spec:
       labels:
         app: mongo-api
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: mongo-api
           image: ghcr.io/anton1990/mongo-api:latest

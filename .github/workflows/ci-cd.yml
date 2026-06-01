@@ -8,7 +8,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/mongo-api
+  IMAGE_NAME: anton1990/mongo-api    # всегда lowercase — требование Docker
 
 jobs:
   # ─── Job 1: сборка и тесты ───────────────────────────────────────────────
@@ -101,6 +101,15 @@ jobs:
 
       - name: Set kubectl context
         run: kubectl config use-context docker-desktop
+
+      - name: Create GHCR pull secret
+        run: |
+          kubectl create secret docker-registry ghcr-secret \
+            --docker-server=ghcr.io \
+            --docker-username=${{ github.actor }} \
+            --docker-password=${{ secrets.GITHUB_TOKEN }} \
+            --namespace mongoapi \
+            --dry-run=client -o yaml | kubectl apply -f -
 
       - name: Apply K8s manifests
         run: |

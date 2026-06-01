@@ -24,11 +24,8 @@ spec:
             - name: mongo-data
               mountPath: /data/db
           readinessProbe:
-            exec:
-              command:
-                - mongosh
-                - --eval
-                - "db.adminCommand('ping')"
+            tcpSocket:
+              port: 27017
             initialDelaySeconds: 10
             periodSeconds: 5
           resources:
