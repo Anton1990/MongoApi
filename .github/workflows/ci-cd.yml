@@ -108,6 +108,8 @@ jobs:
           kubectl apply -f k8s/02-mongo-headless-svc.yaml
           kubectl apply -f k8s/03-mongo-statefulset.yaml
           kubectl apply -f k8s/05-api-configmap.yaml
+          kubectl apply -f k8s/06-api-deployment.yaml
+          kubectl apply -f k8s/07-api-service.yaml
 
       - name: Update API image
         run: |
