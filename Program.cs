@@ -21,7 +21,17 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 
 var initializer = app.Services.GetRequiredService<DatabaseInitializer>();
-await initializer.InitializeAsync();
+try
+{
+    await initializer.InitializeAsync();
+}
+catch (Exception ex)
+{
+    // MongoDB недоступна при старте — приложение продолжает работу.
+    // Индексы будут созданы при следующем рестарте когда MongoDB будет готова.
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogWarning(ex, "DatabaseInitializer failed at startup. Indexes may not be created.");
+}
 
 app.UseSwagger();
 app.UseSwaggerUI();
