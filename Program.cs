@@ -1,4 +1,5 @@
 using MongoApi.Infrastructure;
+using MongoApi.Messaging;
 using MongoApi.Services;
 using MongoApi.Settings;
 
@@ -8,6 +9,8 @@ builder.Services.Configure<MongoDbSettings>(
     builder.Configuration.GetSection("MongoDbSettings"));
 
 builder.Services.AddSingleton<MongoDbContext>();
+builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
+builder.Services.AddHostedService<OutboxPublisher>();
 builder.Services.AddSingleton<ProductService>();
 builder.Services.AddSingleton<CustomerService>();
 builder.Services.AddSingleton<CategoryService>();

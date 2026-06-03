@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit:*)",
+      "Bash(git push origin master)",
+      "Bash(gh run view 26741895278 --repo Anton1990/MongoApi --log-failed)"
+    ]
+  }
+}

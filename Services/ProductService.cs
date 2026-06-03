@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Contracts.Events;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using MongoApi.Infrastructure;
@@ -9,10 +11,12 @@ namespace MongoApi.Services;
 public class ProductService
 {
     private readonly IMongoCollection<Product> _products;
+    private readonly IMongoCollection<OutboxMessage> _outbox;
 
     public ProductService(MongoDbContext context)
     {
         _products = context.Products;
+        _outbox = context.Outbox;
     }
 
     public async Task<List<Product>> GetAllAsync() =>
@@ -93,6 +97,20 @@ public class ProductService
     public async Task<Product> CreateAsync(Product product)
     {
         await _products.InsertOneAsync(product);
+
+        // Сохраняем событие в Outbox — BackgroundService опубликует в RabbitMQ
+        await _outbox.InsertOneAsync(new OutboxMessage
+        {
+            RoutingKey = "product.created",
+            Payload = JsonSerializer.Serialize(new ProductCreatedEvent
+            {
+                Id = product.Id ?? string.Empty,
+                Name = product.Name,
+                Price = product.Price,
+                OccurredAt = DateTime.UtcNow
+            })
+        });
+
         return product;
     }
 

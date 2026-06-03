@@ -1,7 +1,7 @@
+using Microsoft.Extensions.Options;
 using MongoDB.Driver;
 using MongoApi.Models;
 using MongoApi.Settings;
-using Microsoft.Extensions.Options;
 
 namespace MongoApi.Infrastructure;
 
@@ -35,6 +35,9 @@ public class MongoDbContext
 
     public IMongoCollection<Customer> Customers2 =>
         _database.GetCollection<Customer>("customers2");
+
+    public IMongoCollection<OutboxMessage> Outbox =>
+        _database.GetCollection<OutboxMessage>("outbox");
 
     public IMongoDatabase Database => _database;
 }

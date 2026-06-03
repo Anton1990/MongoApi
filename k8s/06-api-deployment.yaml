@@ -24,6 +24,13 @@ spec:
           envFrom:
             - configMapRef:
                 name: api-config
+          env:
+            - name: DOTNET_GCConserveMemory
+              value: "7"                  # агрессивная очистка памяти (0-9, где 9 максимум)
+            - name: DOTNET_GCHeapHardLimit
+              value: "209715200"          # 200Mi — жёсткий лимит кучи GC в байтах
+            - name: DOTNET_GCHighMemPercent
+              value: "75"                 # запускать GC когда использовано 75% лимита
           readinessProbe:
             tcpSocket:
               port: 8080
