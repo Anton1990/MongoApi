@@ -4,12 +4,12 @@ WORKDIR /src
 # Copy project files for layer caching
 COPY Contracts/Contracts.csproj Contracts/
 COPY MongoApi.csproj .
-RUN dotnet restore
+RUN dotnet restore MongoApi.csproj
 
 # Copy source
 COPY Contracts/ Contracts/
 COPY . .
-RUN dotnet publish -c Release -o /app/publish --no-restore
+RUN dotnet publish MongoApi.csproj -c Release -o /app/publish --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app

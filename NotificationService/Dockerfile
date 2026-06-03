@@ -11,7 +11,7 @@ COPY Contracts/ Contracts/
 COPY NotificationService/ NotificationService/
 
 WORKDIR /src/NotificationService
-RUN dotnet publish -c Release -o /app/publish --no-restore
+RUN dotnet publish NotificationService.csproj -c Release -o /app/publish --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
