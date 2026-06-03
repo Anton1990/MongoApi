@@ -14,5 +14,11 @@
   <ItemGroup>
     <ProjectReference Include="Contracts\Contracts.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="NotificationService\**" />
+    <Content Remove="NotificationService\**" />
+    <EmbeddedResource Remove="NotificationService\**" />
+    <None Remove="NotificationService\**" />
+  </ItemGroup>
 
 </Project>
