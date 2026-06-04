@@ -3,11 +3,13 @@ WORKDIR /src
 
 # Copy project files for layer caching
 COPY Contracts/Contracts.csproj Contracts/
+COPY Shared.Messaging/Shared.Messaging.csproj Shared.Messaging/
 COPY NotificationService/NotificationService.csproj NotificationService/
 RUN dotnet restore NotificationService/NotificationService.csproj
 
 # Copy source
 COPY Contracts/ Contracts/
+COPY Shared.Messaging/ Shared.Messaging/
 COPY NotificationService/ NotificationService/
 
 WORKDIR /src/NotificationService
