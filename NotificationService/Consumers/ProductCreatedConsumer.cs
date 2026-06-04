@@ -5,6 +5,7 @@ using MongoDB.Driver;
 using NotificationService.Models;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
+using Shared.Messaging;
 
 namespace NotificationService.Consumers;
 
@@ -13,9 +14,6 @@ public class ProductCreatedConsumer : BackgroundService
     private readonly IMongoCollection<Notification> _notifications;
     private readonly ILogger<ProductCreatedConsumer> _logger;
     private readonly string _hostName;
-    private const string ExchangeName = "product-events";
-    private const string QueueName = "product-created-notifications";
-    private const string RoutingKey = "product.created";
 
     public ProductCreatedConsumer(
         IMongoCollection<Notification> notifications,
@@ -58,9 +56,8 @@ public class ProductCreatedConsumer : BackgroundService
         using var connection = factory.CreateConnection();
         using var channel = connection.CreateModel();
 
-        channel.ExchangeDeclare(ExchangeName, ExchangeType.Direct, durable: true);
-        channel.QueueDeclare(QueueName, durable: true, exclusive: false, autoDelete: false);
-        channel.QueueBind(QueueName, ExchangeName, RoutingKey);
+        // Consumer объявляет свою очередь (страховка если IaC не отработал)
+        RabbitMqTopology.Declare(channel, queues: [RabbitMqTopology.Queues.ProductCreatedNotifications]);
         channel.BasicQos(0, 1, false);
 
         var consumer = new AsyncEventingBasicConsumer(channel);
@@ -95,9 +92,9 @@ public class ProductCreatedConsumer : BackgroundService
             }
         };
 
-        channel.BasicConsume(QueueName, autoAck: false, consumer: consumer);
+        channel.BasicConsume(RabbitMqTopology.Queues.ProductCreatedNotifications, autoAck: false, consumer: consumer);
 
-        _logger.LogInformation("ProductCreatedConsumer started, listening on queue: {Queue}", QueueName);
+        _logger.LogInformation("ProductCreatedConsumer started, listening on queue: {Queue}", RabbitMqTopology.Queues.ProductCreatedNotifications);
 
         while (!stoppingToken.IsCancellationRequested)
             await Task.Delay(1000, stoppingToken);

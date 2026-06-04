@@ -4,6 +4,8 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Exclude sub-projects that live inside this directory from the implicit glob -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);Contracts\**;NotificationService\**;Shared.Messaging\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,12 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="Contracts\Contracts.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Remove="NotificationService\**" />
-    <Content Remove="NotificationService\**" />
-    <EmbeddedResource Remove="NotificationService\**" />
-    <None Remove="NotificationService\**" />
+    <ProjectReference Include="Shared.Messaging\Shared.Messaging.csproj" />
   </ItemGroup>
 
 </Project>

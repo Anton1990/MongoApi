@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using RabbitMQ.Client;
+using Shared.Messaging;
 
 namespace MongoApi.Messaging;
 
@@ -9,9 +10,6 @@ public class RabbitMqPublisher : IRabbitMqPublisher, IDisposable
     private IConnection? _connection;
     private IModel? _channel;
     private readonly ILogger<RabbitMqPublisher> _logger;
-    private const string ExchangeName = "product-events";
-    private const string QueueName = "product-created-notifications";
-    private const string RoutingKey = "product.created";
 
     public RabbitMqPublisher(IConfiguration configuration, ILogger<RabbitMqPublisher> logger)
     {
@@ -27,11 +25,9 @@ public class RabbitMqPublisher : IRabbitMqPublisher, IDisposable
             var factory = new ConnectionFactory { HostName = host };
             _connection = factory.CreateConnection();
             _channel = _connection.CreateModel();
-            _channel.ExchangeDeclare(ExchangeName, ExchangeType.Direct, durable: true);
 
-            // Producer объявляет очередь — она существует независимо от consumer
-            _channel.QueueDeclare(QueueName, durable: true, exclusive: false, autoDelete: false);
-            _channel.QueueBind(QueueName, ExchangeName, RoutingKey);
+            // Producer объявляет только exchange — очереди создают consumer и IaC
+            RabbitMqTopology.Declare(_channel, queues: []);
 
             // Publisher Confirms — брокер подтверждает что принял сообщение
             _channel.ConfirmSelect();
@@ -68,7 +64,7 @@ public class RabbitMqPublisher : IRabbitMqPublisher, IDisposable
         {
             var props = _channel.CreateBasicProperties();
             props.Persistent = true;
-            _channel.BasicPublish(ExchangeName, routingKey, props, body);
+            _channel.BasicPublish(RabbitMqTopology.ProductEventsExchange, routingKey, props, body);
 
             // Ждём подтверждения от брокера (таймаут 5 сек)
             var confirmed = _channel.WaitForConfirms(TimeSpan.FromSeconds(5));
