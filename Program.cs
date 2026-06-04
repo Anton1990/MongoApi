@@ -2,6 +2,7 @@ using MongoApi.Infrastructure;
 using MongoApi.Messaging;
 using MongoApi.Services;
 using MongoApi.Settings;
+using Prometheus;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,6 +41,8 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
+app.UseHttpMetrics();
 app.MapControllers();
+app.MapMetrics();
 
 app.Run();

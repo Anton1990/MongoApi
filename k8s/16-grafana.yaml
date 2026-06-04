@@ -1,0 +1,182 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: mongoapi
+data:
+  datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        url: http://prometheus:9090
+        isDefault: true
+        editable: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-provider
+  namespace: mongoapi
+data:
+  dashboards.yaml: |
+    apiVersion: 1
+    providers:
+      - name: default
+        folder: MongoApi
+        type: file
+        options:
+          path: /var/lib/grafana/dashboards
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-dotnet
+  namespace: mongoapi
+data:
+  dotnet-gc.json: |
+    {
+      "title": ".NET GC & Memory",
+      "uid": "dotnet-gc",
+      "schemaVersion": 38,
+      "refresh": "5s",
+      "time": { "from": "now-15m", "to": "now" },
+      "panels": [
+        {
+          "id": 1,
+          "title": "GC Heap Size by Generation (bytes)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+          "targets": [
+            { "expr": "dotnet_gc_heap_size_bytes{job=\"mongo-api\",generation=\"gen0\"}", "legendFormat": "Gen0" },
+            { "expr": "dotnet_gc_heap_size_bytes{job=\"mongo-api\",generation=\"gen1\"}", "legendFormat": "Gen1" },
+            { "expr": "dotnet_gc_heap_size_bytes{job=\"mongo-api\",generation=\"gen2\"}", "legendFormat": "Gen2" },
+            { "expr": "dotnet_gc_heap_size_bytes{job=\"mongo-api\",generation=\"loh\"}", "legendFormat": "LOH" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes" } },
+          "datasource": "Prometheus"
+        },
+        {
+          "id": 2,
+          "title": "GC Collections per second",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+          "targets": [
+            { "expr": "rate(dotnet_gc_collections_total{job=\"mongo-api\",generation=\"gen0\"}[30s])", "legendFormat": "Gen0/s" },
+            { "expr": "rate(dotnet_gc_collections_total{job=\"mongo-api\",generation=\"gen1\"}[30s])", "legendFormat": "Gen1/s" },
+            { "expr": "rate(dotnet_gc_collections_total{job=\"mongo-api\",generation=\"gen2\"}[30s])", "legendFormat": "Gen2/s" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ops" } },
+          "datasource": "Prometheus"
+        },
+        {
+          "id": 3,
+          "title": "Total Allocated Memory (bytes/sec)",
+          "type": "timeseries",
+          "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+          "targets": [
+            { "expr": "rate(dotnet_gc_allocated_bytes_total{job=\"mongo-api\"}[30s])", "legendFormat": "Alloc bytes/s" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "Bps" } },
+          "datasource": "Prometheus"
+        },
+        {
+          "id": 4,
+          "title": "HTTP Requests per second",
+          "type": "timeseries",
+          "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+          "targets": [
+            { "expr": "rate(http_requests_received_total{job=\"mongo-api\"}[30s])", "legendFormat": "{{method}} {{action}}" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" } },
+          "datasource": "Prometheus"
+        },
+        {
+          "id": 5,
+          "title": "GC Pause Time Ratio",
+          "type": "gauge",
+          "gridPos": { "x": 0, "y": 16, "w": 6, "h": 6 },
+          "targets": [
+            { "expr": "dotnet_gc_pause_ratio{job=\"mongo-api\"}", "legendFormat": "Pause ratio" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } },
+          "datasource": "Prometheus"
+        },
+        {
+          "id": 6,
+          "title": "Active Threads",
+          "type": "stat",
+          "gridPos": { "x": 6, "y": 16, "w": 6, "h": 6 },
+          "targets": [
+            { "expr": "dotnet_threadpool_num_threads{job=\"mongo-api\"}", "legendFormat": "Threads" }
+          ],
+          "datasource": "Prometheus"
+        }
+      ]
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: mongoapi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:10.4.2
+          ports:
+            - containerPort: 3000
+          env:
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              value: "admin"
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+              value: "Viewer"
+          volumeMounts:
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboards-provider
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards
+              mountPath: /var/lib/grafana/dashboards
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "300m"
+      volumes:
+        - name: datasources
+          configMap:
+            name: grafana-datasources
+        - name: dashboards-provider
+          configMap:
+            name: grafana-dashboards-provider
+        - name: dashboards
+          configMap:
+            name: grafana-dashboard-dotnet
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: mongoapi
+spec:
+  selector:
+    app: grafana
+  type: NodePort
+  ports:
+    - port: 3000
+      targetPort: 3000
+      nodePort: 30030   # http://localhost:30030

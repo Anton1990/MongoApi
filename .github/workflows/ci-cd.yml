@@ -176,6 +176,8 @@ jobs:
           kubectl apply -f k8s/12-rabbitmq.yaml
           kubectl apply -f k8s/13-notification-configmap.yaml
           kubectl apply -f k8s/14-notification-deployment.yaml
+          kubectl apply -f k8s/15-prometheus.yaml
+          kubectl apply -f k8s/16-grafana.yaml
 
       - name: Update API image
         run: |
