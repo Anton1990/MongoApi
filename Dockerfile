@@ -3,6 +3,7 @@ WORKDIR /src
 
 # Copy project files for layer caching
 COPY Contracts/Contracts.csproj Contracts/
+COPY Shared.Messaging/Shared.Messaging.csproj Shared.Messaging/
 COPY MongoApi.csproj .
 RUN dotnet restore MongoApi.csproj
 
