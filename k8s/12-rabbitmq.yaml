@@ -34,6 +34,7 @@ spec:
       labels:
         app: rabbitmq
     spec:
+      hostname: rabbitmq   # фиксируем hostname чтобы nodename был стабильным
       containers:
         - name: rabbitmq
           image: rabbitmq:3-management
@@ -41,8 +42,8 @@ spec:
             - containerPort: 5672    # AMQP (для сервисов внутри кластера)
             - containerPort: 15672   # Management UI
           env:
-            # Фиксируем имя ноды — без этого после рестарта пода имя меняется
-            # и RabbitMQ не находит свои старые данные на диске
+            # Фиксируем имя ноды — совпадает с hostname выше
+            # После рестарта пода нода находит свои данные на PVC
             - name: RABBITMQ_NODENAME
               value: "rabbit@rabbitmq"
           resources:
