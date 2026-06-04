@@ -2,6 +2,6 @@ namespace MongoApi.Messaging;
 
 public interface IRabbitMqPublisher
 {
-    void Publish<T>(string routingKey, T message);
-    void PublishRaw(string routingKey, string json);
+    bool Publish<T>(string routingKey, T message);
+    bool PublishRaw(string routingKey, string json);
 }

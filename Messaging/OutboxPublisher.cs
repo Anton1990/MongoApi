@@ -34,7 +34,15 @@ public class OutboxPublisher : BackgroundService
 
                 foreach (var message in pending)
                 {
-                    _publisher.PublishRaw(message.RoutingKey, message.Payload);
+                    var published = _publisher.PublishRaw(message.RoutingKey, message.Payload);
+
+                    if (!published)
+                    {
+                        _logger.LogWarning(
+                            "Outbox failed to publish: {RoutingKey} (id={Id}), will retry",
+                            message.RoutingKey, message.Id);
+                        continue;
+                    }
 
                     await _outbox.UpdateOneAsync(
                         m => m.Id == message.Id,

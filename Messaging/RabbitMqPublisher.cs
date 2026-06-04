@@ -10,6 +10,8 @@ public class RabbitMqPublisher : IRabbitMqPublisher, IDisposable
     private IModel? _channel;
     private readonly ILogger<RabbitMqPublisher> _logger;
     private const string ExchangeName = "product-events";
+    private const string QueueName = "product-created-notifications";
+    private const string RoutingKey = "product.created";
 
     public RabbitMqPublisher(IConfiguration configuration, ILogger<RabbitMqPublisher> logger)
     {
@@ -26,6 +28,14 @@ public class RabbitMqPublisher : IRabbitMqPublisher, IDisposable
             _connection = factory.CreateConnection();
             _channel = _connection.CreateModel();
             _channel.ExchangeDeclare(ExchangeName, ExchangeType.Direct, durable: true);
+
+            // Producer объявляет очередь — она существует независимо от consumer
+            _channel.QueueDeclare(QueueName, durable: true, exclusive: false, autoDelete: false);
+            _channel.QueueBind(QueueName, ExchangeName, RoutingKey);
+
+            // Publisher Confirms — брокер подтверждает что принял сообщение
+            _channel.ConfirmSelect();
+
             _logger.LogInformation("Connected to RabbitMQ at {Host}", host);
         }
         catch (Exception ex)
@@ -34,47 +44,47 @@ public class RabbitMqPublisher : IRabbitMqPublisher, IDisposable
         }
     }
 
-    public void Publish<T>(string routingKey, T message)
+    public bool Publish<T>(string routingKey, T message)
     {
-        if (_channel is null || !_channel.IsOpen)
-        {
-            _logger.LogWarning("RabbitMQ channel not available. Skipping publish for {RoutingKey}", routingKey);
-            return;
-        }
-
-        try
-        {
-            var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message));
-            var props = _channel.CreateBasicProperties();
-            props.Persistent = true;
-            _channel.BasicPublish(ExchangeName, routingKey, props, body);
-            _logger.LogInformation("Published event to {RoutingKey}", routingKey);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to publish event to {RoutingKey}", routingKey);
-        }
+        var body = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(message));
+        return PublishInternal(routingKey, body);
     }
 
-    public void PublishRaw(string routingKey, string json)
+    public bool PublishRaw(string routingKey, string json)
+    {
+        var body = Encoding.UTF8.GetBytes(json);
+        return PublishInternal(routingKey, body);
+    }
+
+    private bool PublishInternal(string routingKey, byte[] body)
     {
         if (_channel is null || !_channel.IsOpen)
         {
             _logger.LogWarning("RabbitMQ channel not available. Skipping publish for {RoutingKey}", routingKey);
-            return;
+            return false;
         }
 
         try
         {
-            var body = Encoding.UTF8.GetBytes(json);
             var props = _channel.CreateBasicProperties();
             props.Persistent = true;
             _channel.BasicPublish(ExchangeName, routingKey, props, body);
-            _logger.LogInformation("Published raw event to {RoutingKey}", routingKey);
+
+            // Ждём подтверждения от брокера (таймаут 5 сек)
+            var confirmed = _channel.WaitForConfirms(TimeSpan.FromSeconds(5));
+            if (!confirmed)
+            {
+                _logger.LogWarning("RabbitMQ NACK for {RoutingKey}", routingKey);
+                return false;
+            }
+
+            _logger.LogInformation("Published and confirmed: {RoutingKey}", routingKey);
+            return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to publish raw event to {RoutingKey}", routingKey);
+            _logger.LogError(ex, "Failed to publish to {RoutingKey}", routingKey);
+            return false;
         }
     }
 
