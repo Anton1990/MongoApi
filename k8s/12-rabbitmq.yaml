@@ -7,6 +7,18 @@ data:
   rabbitmq.conf: |
     loopback_users = none
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rabbitmq-data
+  namespace: mongoapi
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -28,6 +40,11 @@ spec:
           ports:
             - containerPort: 5672    # AMQP (для сервисов внутри кластера)
             - containerPort: 15672   # Management UI
+          env:
+            # Фиксируем имя ноды — без этого после рестарта пода имя меняется
+            # и RabbitMQ не находит свои старые данные на диске
+            - name: RABBITMQ_NODENAME
+              value: "rabbit@rabbitmq"
           resources:
             requests:
               memory: "128Mi"
@@ -39,10 +56,15 @@ spec:
             - name: rabbitmq-config
               mountPath: /etc/rabbitmq/rabbitmq.conf
               subPath: rabbitmq.conf
+            - name: rabbitmq-data
+              mountPath: /var/lib/rabbitmq
       volumes:
         - name: rabbitmq-config
           configMap:
             name: rabbitmq-config
+        - name: rabbitmq-data
+          persistentVolumeClaim:
+            claimName: rabbitmq-data
 ---
 apiVersion: v1
 kind: Service
