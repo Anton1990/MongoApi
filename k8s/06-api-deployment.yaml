@@ -19,6 +19,13 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
+          env:
+            - name: DOTNET_GCHeapHardLimit
+              value: "200000000"
+            - name: DOTNET_GCTotalPhysicalMemory
+              value: "268435456"
+            - name: DOTNET_GCConserveMemory
+              value: "9"
           envFrom:
             - configMapRef:
                 name: api-config
@@ -29,8 +36,8 @@ spec:
             periodSeconds: 10
           resources:
             requests:
-              memory: "128Mi"
+              memory: "256Mi"
               cpu: "100m"
             limits:
-              memory: "256Mi"
+              memory: "512Mi"
               cpu: "500m"

@@ -38,20 +38,22 @@ data:
     {
       "title": ".NET GC & Memory",
       "uid": "dotnet-gc",
+      "version": 100,
       "schemaVersion": 38,
       "refresh": "5s",
       "time": { "from": "now-15m", "to": "now" },
       "panels": [
         {
           "id": 1,
-          "title": "GC Heap Size by Generation (bytes)",
+          "title": "GC Heap Size by Generation",
           "type": "timeseries",
           "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
           "targets": [
-            { "expr": "dotnet_gc_heap_size_bytes{job=\"mongo-api\",generation=\"gen0\"}", "legendFormat": "Gen0" },
-            { "expr": "dotnet_gc_heap_size_bytes{job=\"mongo-api\",generation=\"gen1\"}", "legendFormat": "Gen1" },
-            { "expr": "dotnet_gc_heap_size_bytes{job=\"mongo-api\",generation=\"gen2\"}", "legendFormat": "Gen2" },
-            { "expr": "dotnet_gc_heap_size_bytes{job=\"mongo-api\",generation=\"loh\"}", "legendFormat": "LOH" }
+            { "expr": "system_runtime_gen_0_size{job=\"mongo-api\"}", "legendFormat": "Gen0" },
+            { "expr": "system_runtime_gen_1_size{job=\"mongo-api\"}", "legendFormat": "Gen1" },
+            { "expr": "system_runtime_gen_2_size{job=\"mongo-api\"}", "legendFormat": "Gen2" },
+            { "expr": "system_runtime_loh_size{job=\"mongo-api\"}", "legendFormat": "LOH" },
+            { "expr": "system_runtime_poh_size{job=\"mongo-api\"}", "legendFormat": "POH" }
           ],
           "fieldConfig": { "defaults": { "unit": "bytes" } },
           "datasource": "Prometheus"
@@ -62,22 +64,24 @@ data:
           "type": "timeseries",
           "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
           "targets": [
-            { "expr": "rate(dotnet_gc_collections_total{job=\"mongo-api\",generation=\"gen0\"}[30s])", "legendFormat": "Gen0/s" },
-            { "expr": "rate(dotnet_gc_collections_total{job=\"mongo-api\",generation=\"gen1\"}[30s])", "legendFormat": "Gen1/s" },
-            { "expr": "rate(dotnet_gc_collections_total{job=\"mongo-api\",generation=\"gen2\"}[30s])", "legendFormat": "Gen2/s" }
+            { "expr": "rate(system_runtime_gen_0_gc_count_total{job=\"mongo-api\"}[30s])", "legendFormat": "Gen0/s" },
+            { "expr": "rate(system_runtime_gen_1_gc_count_total{job=\"mongo-api\"}[30s])", "legendFormat": "Gen1/s" },
+            { "expr": "rate(system_runtime_gen_2_gc_count_total{job=\"mongo-api\"}[30s])", "legendFormat": "Gen2/s" }
           ],
           "fieldConfig": { "defaults": { "unit": "ops" } },
           "datasource": "Prometheus"
         },
         {
           "id": 3,
-          "title": "Total Allocated Memory (bytes/sec)",
+          "title": "Process Memory (MB)",
           "type": "timeseries",
           "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
           "targets": [
-            { "expr": "rate(dotnet_gc_allocated_bytes_total{job=\"mongo-api\"}[30s])", "legendFormat": "Alloc bytes/s" }
+            { "expr": "system_runtime_working_set{job=\"mongo-api\"}", "legendFormat": "Working Set" },
+            { "expr": "system_runtime_gc_heap_size{job=\"mongo-api\"}", "legendFormat": "GC Heap" },
+            { "expr": "system_runtime_gc_committed{job=\"mongo-api\"}", "legendFormat": "GC Committed" }
           ],
-          "fieldConfig": { "defaults": { "unit": "Bps" } },
+          "fieldConfig": { "defaults": { "unit": "mbytes" } },
           "datasource": "Prometheus"
         },
         {
@@ -93,23 +97,46 @@ data:
         },
         {
           "id": 5,
-          "title": "GC Pause Time Ratio",
+          "title": "% Time in GC",
           "type": "gauge",
           "gridPos": { "x": 0, "y": 16, "w": 6, "h": 6 },
           "targets": [
-            { "expr": "dotnet_gc_pause_ratio{job=\"mongo-api\"}", "legendFormat": "Pause ratio" }
+            { "expr": "system_runtime_time_in_gc{job=\"mongo-api\"}", "legendFormat": "% in GC" }
           ],
-          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } },
+          "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 } },
           "datasource": "Prometheus"
         },
         {
           "id": 6,
-          "title": "Active Threads",
-          "type": "stat",
+          "title": "GC Fragmentation (%)",
+          "type": "gauge",
           "gridPos": { "x": 6, "y": 16, "w": 6, "h": 6 },
           "targets": [
-            { "expr": "dotnet_threadpool_num_threads{job=\"mongo-api\"}", "legendFormat": "Threads" }
+            { "expr": "system_runtime_gc_fragmentation{job=\"mongo-api\"}", "legendFormat": "Fragmentation" }
           ],
+          "fieldConfig": { "defaults": { "unit": "percent", "min": 0, "max": 100 } },
+          "datasource": "Prometheus"
+        },
+        {
+          "id": 7,
+          "title": "GC Gen0 Budget (MB)",
+          "type": "stat",
+          "gridPos": { "x": 12, "y": 16, "w": 6, "h": 6 },
+          "targets": [
+            { "expr": "system_runtime_gen_0_gc_budget{job=\"mongo-api\"}", "legendFormat": "Gen0 budget" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "mbytes" } },
+          "datasource": "Prometheus"
+        },
+        {
+          "id": 8,
+          "title": "Total GC Pause Time (ms)",
+          "type": "timeseries",
+          "gridPos": { "x": 18, "y": 16, "w": 6, "h": 6 },
+          "targets": [
+            { "expr": "rate(system_runtime_total_pause_time_by_gc_total{job=\"mongo-api\"}[30s])", "legendFormat": "Pause ms/s" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ms" } },
           "datasource": "Prometheus"
         }
       ]
