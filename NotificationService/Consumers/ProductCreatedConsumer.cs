@@ -29,9 +29,26 @@ public class ProductCreatedConsumer : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Ждём пока RabbitMQ поднимется
-        await Task.Delay(8000, stoppingToken);
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                await ConnectAndConsumeAsync(stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "RabbitMQ connection failed. Retrying in 5 seconds...");
+                await Task.Delay(5000, stoppingToken);
+            }
+        }
+    }
 
+    private async Task ConnectAndConsumeAsync(CancellationToken stoppingToken)
+    {
         var factory = new ConnectionFactory
         {
             HostName = _hostName,

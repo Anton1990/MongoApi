@@ -1,3 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-config
+  namespace: mongoapi
+data:
+  rabbitmq.conf: |
+    loopback_users = none
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -26,6 +35,14 @@ spec:
             limits:
               memory: "256Mi"
               cpu: "300m"
+          volumeMounts:
+            - name: rabbitmq-config
+              mountPath: /etc/rabbitmq/rabbitmq.conf
+              subPath: rabbitmq.conf
+      volumes:
+        - name: rabbitmq-config
+          configMap:
+            name: rabbitmq-config
 ---
 apiVersion: v1
 kind: Service
