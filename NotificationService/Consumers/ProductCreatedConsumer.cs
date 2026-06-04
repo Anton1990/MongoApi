@@ -24,7 +24,7 @@ public class ProductCreatedConsumer : BackgroundService
     {
         _notifications = notifications;
         _logger = logger;
-        _hostName = configuration["RabbitMq__Host"] ?? "rabbitmq";
+        _hostName = configuration["RabbitMq:Host"] ?? "rabbitmq";
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

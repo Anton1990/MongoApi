@@ -5,9 +5,9 @@ using NotificationService.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 // MongoDB
-var connectionString = builder.Configuration["MongoDb__ConnectionString"]
-    ?? throw new InvalidOperationException("MongoDb__ConnectionString is required");
-var databaseName = builder.Configuration["MongoDb__DatabaseName"] ?? "NotificationsDb";
+var connectionString = builder.Configuration["MongoDb:ConnectionString"]
+    ?? throw new InvalidOperationException("MongoDb:ConnectionString is required");
+var databaseName = builder.Configuration["MongoDb:DatabaseName"] ?? "NotificationsDb";
 
 var mongoClient = new MongoClient(connectionString);
 var database = mongoClient.GetDatabase(databaseName);
