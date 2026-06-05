@@ -11,18 +11,23 @@ public class RabbitMqPublisher : IRabbitMqPublisher, IDisposable
     private IModel? _channel;
     private readonly ILogger<RabbitMqPublisher> _logger;
 
+    private readonly string _host;
+
     public RabbitMqPublisher(IConfiguration configuration, ILogger<RabbitMqPublisher> logger)
     {
         _logger = logger;
-        var host = configuration["RabbitMq__Host"] ?? "rabbitmq";
-        TryConnect(host);
+        _host = configuration["RabbitMq__Host"] ?? "rabbitmq";
+        TryConnect();
     }
 
-    private void TryConnect(string host)
+    private void TryConnect()
     {
         try
         {
-            var factory = new ConnectionFactory { HostName = host };
+            _connection?.Dispose();
+            _channel?.Dispose();
+
+            var factory = new ConnectionFactory { HostName = _host };
             _connection = factory.CreateConnection();
             _channel = _connection.CreateModel();
 
@@ -32,11 +37,13 @@ public class RabbitMqPublisher : IRabbitMqPublisher, IDisposable
             // Publisher Confirms — брокер подтверждает что принял сообщение
             _channel.ConfirmSelect();
 
-            _logger.LogInformation("Connected to RabbitMQ at {Host}", host);
+            _logger.LogInformation("Connected to RabbitMQ at {Host}", _host);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "RabbitMQ not available at startup. Events will not be published.");
+            _channel = null;
+            _connection = null;
+            _logger.LogWarning(ex, "RabbitMQ not available. Will retry on next publish.");
         }
     }
 
@@ -56,7 +63,13 @@ public class RabbitMqPublisher : IRabbitMqPublisher, IDisposable
     {
         if (_channel is null || !_channel.IsOpen)
         {
-            _logger.LogWarning("RabbitMQ channel not available. Skipping publish for {RoutingKey}", routingKey);
+            _logger.LogWarning("RabbitMQ channel not available, attempting reconnect...");
+            TryConnect();
+        }
+
+        if (_channel is null || !_channel.IsOpen)
+        {
+            _logger.LogWarning("RabbitMQ unavailable. Skipping publish for {RoutingKey}", routingKey);
             return false;
         }
 
