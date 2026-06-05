@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Contracts.Events;
@@ -14,6 +16,11 @@ public class ProductCreatedConsumer : BackgroundService
     private readonly IMongoCollection<Notification> _notifications;
     private readonly ILogger<ProductCreatedConsumer> _logger;
     private readonly string _hostName;
+
+    // Ключ = MD5 тела сообщения, значение = количество неудачных попыток
+    // Позволяет отслеживать retry-счётчик между повторными доставками
+    private readonly ConcurrentDictionary<string, int> _retryCounts = new();
+    private const int MaxRetries = 3;
 
     public ProductCreatedConsumer(
         IMongoCollection<Notification> notifications,
@@ -56,8 +63,11 @@ public class ProductCreatedConsumer : BackgroundService
         using var connection = factory.CreateConnection();
         using var channel = connection.CreateModel();
 
-        // Consumer объявляет свою очередь (страховка если IaC не отработал)
-        RabbitMqTopology.Declare(channel, queues: [RabbitMqTopology.Queues.ProductCreatedNotifications]);
+        // Consumer объявляет свои очереди (страховка если IaC не отработал)
+        RabbitMqTopology.Declare(channel, queues: [
+            RabbitMqTopology.Queues.ProductCreatedNotifications,
+            RabbitMqTopology.Queues.ProductCreatedDlq
+        ]);
         channel.BasicQos(0, 1, false);
 
         var consumer = new AsyncEventingBasicConsumer(channel);
@@ -87,8 +97,27 @@ public class ProductCreatedConsumer : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to process ProductCreatedEvent");
-                channel.BasicNack(ea.DeliveryTag, false, requeue: true);
+                var bodyBytes = ea.Body.ToArray();
+                var key = Convert.ToHexString(MD5.HashData(bodyBytes));
+                var attempt = _retryCounts.AddOrUpdate(key, 1, (_, n) => n + 1);
+
+                _logger.LogError(ex,
+                    "Failed to process ProductCreatedEvent (attempt {Attempt}/{Max})",
+                    attempt, MaxRetries);
+
+                if (attempt >= MaxRetries)
+                {
+                    _retryCounts.TryRemove(key, out int removed);
+                    _logger.LogWarning(
+                        "Max retries reached. Routing message to DLQ (key={Key})", key);
+                    // requeue:false → x-dead-letter-exchange → DLQ
+                    channel.BasicNack(ea.DeliveryTag, false, requeue: false);
+                }
+                else
+                {
+                    // Вернуть в конец очереди для повторной попытки
+                    channel.BasicNack(ea.DeliveryTag, false, requeue: true);
+                }
             }
         };
 
