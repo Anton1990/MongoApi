@@ -153,18 +153,15 @@ jobs:
       - name: Set kubectl context
         run: kubectl config use-context docker-desktop
 
-      - name: Create GHCR pull secret
+      - name: Apply K8s manifests
         run: |
+          kubectl apply -f k8s/00-namespace.yaml
           kubectl create secret docker-registry ghcr-secret `
             --docker-server=ghcr.io `
             --docker-username=${{ github.actor }} `
             --docker-password=${{ secrets.GITHUB_TOKEN }} `
             --namespace mongoapi `
             --dry-run=client -o yaml | kubectl apply -f -
-
-      - name: Apply K8s manifests
-        run: |
-          kubectl apply -f k8s/00-namespace.yaml
           kubectl apply -f k8s/02-mongo-headless-svc.yaml
           kubectl apply -f k8s/03-mongo-statefulset.yaml
           kubectl apply -f k8s/05-api-configmap.yaml
