@@ -153,6 +153,21 @@ jobs:
       - name: Set kubectl context
         run: kubectl config use-context docker-desktop
 
+      - name: Import Secrets from HCP Vault
+        uses: hashicorp/vault-action@v3
+        with:
+          url: ${{ secrets.VAULT_ADDR }}
+          token: ${{ secrets.VAULT_TOKEN }}
+          namespace: admin
+          secrets: |
+            secret/data/enterAR/dev ConnectionStrings__EnterARContext | DB_ENTERARCONTEXT ;
+            secret/data/enterAR/dev Security__EnterAR__SymmetricSecurityKey | JWT_KEY ;
+
+      - name: Debug - Print Vault secrets (masked)
+        run: |
+          echo "DB_ENTERARCONTEXT=${{ env.DB_ENTERARCONTEXT }}"
+          echo "JWT_KEY=${{ env.JWT_KEY }}"
+
       - name: Apply K8s manifests
         run: |
           kubectl apply -f k8s/00-namespace.yaml
