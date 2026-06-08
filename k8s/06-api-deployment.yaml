@@ -29,6 +29,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: api-config
+            - secretRef:
+                name: vault-secrets
           readinessProbe:
             tcpSocket:
               port: 8080

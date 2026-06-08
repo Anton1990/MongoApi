@@ -168,6 +168,15 @@ jobs:
           echo "DB_ENTERARCONTEXT=${{ env.DB_ENTERARCONTEXT }}"
           echo "JWT_KEY=${{ env.JWT_KEY }}"
 
+      - name: Create k8s Secret from Vault
+        run: |
+          kubectl apply -f k8s/00-namespace.yaml
+          kubectl create secret generic vault-secrets `
+            "--from-literal=ConnectionStrings__EnterARContext=${{ env.DB_ENTERARCONTEXT }}" `
+            "--from-literal=Security__EnterAR__SymmetricSecurityKey=${{ env.JWT_KEY }}" `
+            --namespace mongoapi `
+            --dry-run=client -o yaml | kubectl apply -f -
+
       - name: Apply K8s manifests
         run: |
           kubectl apply -f k8s/00-namespace.yaml
