@@ -160,8 +160,8 @@ jobs:
           token: ${{ secrets.VAULT_TOKEN }}
           namespace: admin
           secrets: |
-            secret/data/enterAR/dev ConnectionStrings__EnterARContext | DB_ENTERARCONTEXT ;
-            secret/data/enterAR/dev Security__EnterAR__SymmetricSecurityKey | JWT_KEY ;
+            secret/data/dev ConnectionStrings__EnterARContext | DB_ENTERARCONTEXT ;
+            secret/data/dev Security__EnterAR__SymmetricSecurityKey | JWT_KEY ;
 
       - name: Debug - Print Vault secrets (masked)
         run: |
