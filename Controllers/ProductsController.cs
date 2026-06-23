@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using MongoApi.Infrastructure;
 using MongoApi.Models;
 using MongoApi.Models.Dtos;
 using MongoApi.Services;
@@ -20,6 +19,29 @@ public class ProductsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<Product>>> GetAll() =>
         Ok(await _productService.GetAllAsync());
+
+    /// <summary>
+    /// Поиск через строку-выражение (Expression Tree).
+    /// Поля: Name, Price, Stock, IsAvailable, CategoryId, CreatedAt
+    /// Операторы: ==, !=, &lt;, &gt;, &lt;=, &gt;=, Contains, StartsWith, EndsWith
+    /// Логика: AND, OR, скобки ()
+    ///
+    /// GET /api/products/query?q=Price>100 AND IsAvailable==True
+    /// GET /api/products/query?q=(Price>=50 AND Price&lt;=500) OR Name Contains laptop
+    /// </summary>
+    [HttpGet("query")]
+    public async Task<ActionResult<List<Product>>> Query([FromQuery] string q)
+    {
+        try
+        {
+            var result = await _productService.ExpressionSearchAsync(q);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
 
     /// <summary>
     /// Курсорная пагинация.
@@ -67,7 +89,7 @@ public class ProductsController : ControllerBase
         {
             return NotFound(ex.Message);
         }
-        catch (ConcurrencyException ex)
+        catch (Infrastructure.ConcurrencyException ex)
         {
             // 409 Conflict — документ изменён другим запросом
             return Conflict(new { error = ex.Message });

@@ -2,6 +2,8 @@ using System.Text.Json;
 using Contracts.Events;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using MongoDB.Driver.Linq;
+using MongoApi.Filtering;
 using MongoApi.Infrastructure;
 using MongoApi.Models;
 using MongoApi.Models.Dtos;
@@ -152,4 +154,38 @@ public class ProductService
         var result = await _products.DeleteOneAsync(p => p.Id == id);
         return result.DeletedCount > 0;
     }
+
+    // Поля разрешённые для expression-фильтрации
+    private static readonly HashSet<string> AllowedFilterFields = new()
+    {
+        nameof(Product.Name),
+        nameof(Product.Price),
+        nameof(Product.Stock),
+        nameof(Product.IsAvailable),
+        nameof(Product.CategoryId),
+        nameof(Product.CreatedAt)
+    };
+
+    /// <summary>
+    /// Поиск через строку-выражение в стиле Expression Tree.
+    /// Поддерживает: ==, !=, &lt;, &gt;, &lt;=, &gt;=, Contains, StartsWith, EndsWith
+    /// Поддерживает: AND, OR, скобки для группировки
+    ///
+    /// Примеры:
+    ///   Price&gt;100 AND IsAvailable==True
+    ///   (Price&gt;=50 AND Price&lt;=500) OR Name Contains laptop
+    ///   Name StartsWith Apple AND Stock&gt;0
+    /// </summary>
+    public async Task<List<Product>> ExpressionSearchAsync(string query)
+    {
+        var operations = new GeneralOperationType(AllowedFilterFields);
+        var parser = new LogicalParser<Product>(query, operations);
+        var predicate = parser.Parse();
+
+        return _products
+            .AsQueryable()
+            .Where(predicate)
+            .ToList();
+    }
+
 }
