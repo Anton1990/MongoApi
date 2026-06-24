@@ -4,7 +4,7 @@ metadata:
   name: mongo-backup
   namespace: mongoapi
 spec:
-  schedule: "* * * * *"              # каждую минуту (для теста)
+  schedule: "*/5 * * * *"            # каждые 5 минут
   # schedule: "0 2 * * *"           # каждую ночь в 02:00 (для prod)
   concurrencyPolicy: Forbid          # не запускать новый если предыдущий ещё идёт
   successfulJobsHistoryLimit: 3      # хранить последние 3 успешных job
@@ -39,5 +39,5 @@ spec:
           volumes:
             - name: backup-storage
               hostPath:
-                path: /mnt/mongo-backups
+                path: /run/desktop/mnt/host/c/Users/Lukya/mongo-backups
                 type: DirectoryOrCreate

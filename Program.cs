@@ -1,3 +1,4 @@
+using MongoApi.GraphQL;
 using MongoApi.Infrastructure;
 using MongoApi.Messaging;
 using MongoApi.Services;
@@ -22,6 +23,14 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services
+    .AddGraphQLServer()
+    .AddQueryType<ProductQuery>()
+    .AddMutationType<ProductMutation>()
+    .AddMongoDbFiltering()
+    .AddMongoDbSorting()
+    .AddMongoDbProjections();
+
 var app = builder.Build();
 
 var initializer = app.Services.GetRequiredService<DatabaseInitializer>();
@@ -44,5 +53,6 @@ app.UseHttpsRedirection();
 app.UseHttpMetrics();
 app.MapControllers();
 app.MapMetrics();
+app.MapGraphQL(); // endpoint: /graphql (Banana Cake Pop UI включён автоматически)
 
 app.Run();
