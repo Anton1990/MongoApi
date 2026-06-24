@@ -27,9 +27,9 @@ builder.Services
     .AddGraphQLServer()
     .AddQueryType<ProductQuery>()
     .AddMutationType<ProductMutation>()
-    .AddMongoDbFiltering()
-    .AddMongoDbSorting()
-    .AddMongoDbProjections();
+    .AddFiltering()
+    .AddSorting()
+    .AddProjections();
 
 var app = builder.Build();
 

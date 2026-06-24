@@ -1,3 +1,4 @@
+using MongoDB.Bson;
 using MongoDB.Driver;
 using MongoApi.Models;
 
@@ -6,16 +7,27 @@ namespace MongoApi.Infrastructure;
 public class DatabaseInitializer
 {
     private readonly IMongoDatabase _db;
+    private readonly IHostEnvironment _env;
 
-    public DatabaseInitializer(MongoDbContext context)
+    public DatabaseInitializer(MongoDbContext context, IHostEnvironment env)
     {
         _db = context.Database;
+        _env = env;
     }
 
     public async Task InitializeAsync()
     {
         await CreateProductIndexesAsync();
         await CreateCustomerIndexesAsync();
+        if (_env.IsDevelopment())
+            await EnableProfilerAsync();
+    }
+
+    private async Task EnableProfilerAsync()
+    {
+        // Профилируем все запросы (slowms: 0) — только в Development
+        await _db.RunCommandAsync<BsonDocument>(
+            new BsonDocument { { "profile", 1 }, { "slowms", 0 } });
     }
 
     private async Task CreateProductIndexesAsync()
