@@ -21,7 +21,7 @@ public class ProductsController : ControllerBase
         Ok(await _productService.GetAllAsync());
 
     /// <summary>
-    /// Поиск через строку-выражение (Expression Tree) с пагинацией и сортировкой.
+    /// Поиск через строку-выражение (Expression Tree) с пагинацией, сортировкой и проекцией полей.
     /// Поля: Name, Price, Stock, IsAvailable, CategoryId, CreatedAt
     /// Операторы: ==, !=, &lt;, &gt;, &lt;=, &gt;=, Contains, StartsWith, EndsWith
     /// Логика: AND, OR, скобки ()
@@ -29,24 +29,56 @@ public class ProductsController : ControllerBase
     /// GET /api/products/query?q=Price>100&amp;page=1&amp;pageSize=20
     /// GET /api/products/query?q=Price>100&amp;sortBy=Price&amp;sortDesc=true
     /// GET /api/products/query?q=(Price>=50 AND Price&lt;=500) OR Name Contains laptop&amp;page=2&amp;pageSize=50
+    /// GET /api/products/query?q=Price>100&amp;fields=Name,Price,Stock
     /// </summary>
     [HttpGet("query")]
-    public async Task<ActionResult<PagedResult<Product>>> Query(
+    public async Task<IActionResult> Query(
         [FromQuery] string q,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] string? sortBy = null,
-        [FromQuery] bool sortDesc = false)
+        [FromQuery] bool sortDesc = false,
+        [FromQuery] string? fields = null)
     {
         try
         {
             var result = await _productService.ExpressionSearchAsync(q, page, pageSize, sortBy, sortDesc);
-            return Ok(result);
+
+            if (fields is null)
+                return Ok(result);
+
+            // Проекция: возвращаем только запрошенные поля
+            var fieldSet = fields
+                .Split(',')
+                .Select(f => f.Trim())
+                .Where(f => !string.IsNullOrEmpty(f))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var projected = result.Items
+                .Select(p => ProjectFields(p, fieldSet))
+                .ToList();
+
+            return Ok(new { items = projected, page = result.Page, pageSize = result.PageSize, total = result.Total });
         }
         catch (ArgumentException ex)
         {
             return BadRequest(new { error = ex.Message });
         }
+    }
+
+    /// <summary>
+    /// Возвращает только запрошенные поля продукта в виде словаря.
+    /// Неизвестные поля игнорируются.
+    /// </summary>
+    private static Dictionary<string, object?> ProjectFields(Product product, HashSet<string> fields)
+    {
+        var dict = new Dictionary<string, object?>();
+        foreach (var prop in typeof(Product).GetProperties())
+        {
+            if (fields.Contains(prop.Name))
+                dict[prop.Name] = prop.GetValue(product);
+        }
+        return dict;
     }
 
     /// <summary>

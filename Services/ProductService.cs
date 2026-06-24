@@ -156,6 +156,11 @@ public class ProductService
         return result.DeletedCount > 0;
     }
 
+    // Для Hot Chocolate GraphQL — возвращает IQueryable,
+    // к которому HC добавит Where/OrderBy/Skip/Take из GraphQL запроса
+    public IQueryable<Product> GetQueryable() =>
+        _products.AsQueryable();
+
     // Поля разрешённые для expression-фильтрации
     private static readonly HashSet<string> AllowedFilterFields = new()
     {
