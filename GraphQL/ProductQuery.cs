@@ -4,7 +4,6 @@ using MongoApi.Services;
 
 namespace MongoApi.GraphQL;
 
-[QueryType]
 public class ProductQuery
 {
     /// <summary>

@@ -3,7 +3,6 @@ using MongoApi.Services;
 
 namespace MongoApi.GraphQL;
 
-[MutationType]
 public class ProductMutation
 {
     /// <summary>
