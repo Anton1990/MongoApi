@@ -21,4 +21,13 @@
     <ProjectReference Include="Shared.Messaging\Shared.Messaging.csproj" />
   </ItemGroup>
 
+
+  <!-- Автоматически запускает kubectl port-forward перед каждым билдом в VS -->
+  <Target Name="StartDevPortForward" BeforeTargets="Build">
+    <Exec Command="powershell -ExecutionPolicy Bypass -NonInteractive -File &quot;$(MSBuildProjectDirectory)\scripts\start-dev.ps1&quot;"
+          ContinueOnError="true"
+          StandardOutputImportance="low"
+          StandardErrorImportance="low" />
+  </Target>
+
 </Project>
