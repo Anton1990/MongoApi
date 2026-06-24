@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using System.Text.Json;
 using Contracts.Events;
 using MongoDB.Bson;
@@ -176,16 +177,42 @@ public class ProductService
     ///   (Price&gt;=50 AND Price&lt;=500) OR Name Contains laptop
     ///   Name StartsWith Apple AND Stock&gt;0
     /// </summary>
-    public async Task<List<Product>> ExpressionSearchAsync(string query)
+    public async Task<PagedResult<Product>> ExpressionSearchAsync(
+        string query,
+        int page = 1,
+        int pageSize = 20,
+        string? sortBy = null,
+        bool sortDesc = false)
     {
+        const int MaxPageSize = 100;
+        pageSize = Math.Clamp(pageSize, 1, MaxPageSize);
+        page = Math.Max(1, page);
+
         var operations = new GeneralOperationType(AllowedFilterFields);
         var parser = new LogicalParser<Product>(query, operations);
         var predicate = parser.Parse();
 
-        return _products
-            .AsQueryable()
-            .Where(predicate)
+        var queryable = _products.AsQueryable().Where(predicate);
+
+        if (sortBy is not null && AllowedFilterFields.Contains(sortBy))
+        {
+            var parameter = Expression.Parameter(typeof(Product), "p");
+            var property = Expression.Property(parameter, sortBy);
+            var boxed = Expression.Convert(property, typeof(object));
+            var keySelector = Expression.Lambda<Func<Product, object>>(boxed, parameter);
+
+            queryable = sortDesc
+                ? queryable.OrderByDescending(keySelector)
+                : queryable.OrderBy(keySelector);
+        }
+
+        var total = queryable.Count();
+        var items = queryable
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToList();
+
+        return new PagedResult<Product>(items, page, pageSize, total);
     }
 
 }

@@ -21,20 +21,26 @@ public class ProductsController : ControllerBase
         Ok(await _productService.GetAllAsync());
 
     /// <summary>
-    /// Поиск через строку-выражение (Expression Tree).
+    /// Поиск через строку-выражение (Expression Tree) с пагинацией и сортировкой.
     /// Поля: Name, Price, Stock, IsAvailable, CategoryId, CreatedAt
     /// Операторы: ==, !=, &lt;, &gt;, &lt;=, &gt;=, Contains, StartsWith, EndsWith
     /// Логика: AND, OR, скобки ()
     ///
-    /// GET /api/products/query?q=Price>100 AND IsAvailable==True
-    /// GET /api/products/query?q=(Price>=50 AND Price&lt;=500) OR Name Contains laptop
+    /// GET /api/products/query?q=Price>100&amp;page=1&amp;pageSize=20
+    /// GET /api/products/query?q=Price>100&amp;sortBy=Price&amp;sortDesc=true
+    /// GET /api/products/query?q=(Price>=50 AND Price&lt;=500) OR Name Contains laptop&amp;page=2&amp;pageSize=50
     /// </summary>
     [HttpGet("query")]
-    public async Task<ActionResult<List<Product>>> Query([FromQuery] string q)
+    public async Task<ActionResult<PagedResult<Product>>> Query(
+        [FromQuery] string q,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] bool sortDesc = false)
     {
         try
         {
-            var result = await _productService.ExpressionSearchAsync(q);
+            var result = await _productService.ExpressionSearchAsync(q, page, pageSize, sortBy, sortDesc);
             return Ok(result);
         }
         catch (ArgumentException ex)

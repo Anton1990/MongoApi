@@ -200,6 +200,29 @@ jobs:
           kubectl apply -f k8s/15-prometheus.yaml
           kubectl apply -f k8s/16-grafana.yaml
 
+      - name: Ensure MongoDB ReplicaSet is healthy
+        run: |
+          kubectl rollout status statefulset/mongo --namespace mongoapi --timeout=120s
+          $rsOk = kubectl exec mongo-0 --namespace mongoapi -- `
+            mongosh --quiet --eval "try { rs.status().ok } catch(e) { 0 }" 2>&1
+          if ($rsOk -ne "1") {
+            Write-Host "ReplicaSet not healthy (status=$rsOk), forcing reconfig..."
+            kubectl exec mongo-0 --namespace mongoapi -- mongosh --quiet --eval @"
+              rs.reconfig({
+                _id: 'rs0',
+                members: [
+                  {_id:0, host:'mongo-0.mongo-headless:27017', priority:2},
+                  {_id:1, host:'mongo-1.mongo-headless:27017', priority:1},
+                  {_id:2, host:'mongo-2.mongo-headless:27017', priority:1},
+                  {_id:3, host:'mongo-3.mongo-headless:27017', priority:1},
+                  {_id:4, host:'mongo-4.mongo-headless:27017', priority:1}
+                ]
+              }, {force: true})
+"@
+          } else {
+            Write-Host "ReplicaSet is healthy"
+          }
+
       - name: Update API image
         run: |
           kubectl set image deployment/mongo-api `

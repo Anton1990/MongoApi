@@ -20,7 +20,7 @@ spec:
             - containerPort: 8081
           env:
             - name: ME_CONFIG_MONGODB_URL
-              value: "mongodb://mongo-0.mongo-headless.mongoapi.svc.cluster.local:27017,mongo-1.mongo-headless.mongoapi.svc.cluster.local:27017,mongo-2.mongo-headless.mongoapi.svc.cluster.local:27017/?replicaSet=rs0"
+              value: "mongodb://mongo-0.mongo-headless.mongoapi.svc.cluster.local:27017,mongo-1.mongo-headless.mongoapi.svc.cluster.local:27017,mongo-2.mongo-headless.mongoapi.svc.cluster.local:27017,mongo-3.mongo-headless.mongoapi.svc.cluster.local:27017,mongo-4.mongo-headless.mongoapi.svc.cluster.local:27017/?replicaSet=rs0"
             - name: ME_CONFIG_BASICAUTH
               value: "false"
           resources:
