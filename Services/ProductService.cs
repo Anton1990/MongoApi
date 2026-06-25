@@ -3,6 +3,7 @@ using Contracts.Events;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
 using MongoApi.Infrastructure;
+using MongoApi.Infrastructure.Exceptions;
 using MongoApi.Models;
 using MongoApi.Services.Abstractions;
 
@@ -65,10 +66,10 @@ public class ProductService : BaseMongoService<Product>, IProductService
         var result = await _collection.ReplaceOneAsync(filter, updated);
 
         if (result.MatchedCount == 0)
-            throw new KeyNotFoundException($"Product {id} not found");
+            throw new NotFoundException("Product", id);
 
         if (result.ModifiedCount == 0)
-            throw new ConcurrencyException(
+            throw new ConflictException(
                 $"Product {id} was modified by another request. " +
                 $"Expected version: {expectedVersion}, please reload and try again.");
 

@@ -1,5 +1,6 @@
 using MongoApi.GraphQL;
 using MongoApi.Infrastructure;
+using MongoApi.Infrastructure.Exceptions;
 using MongoApi.Messaging;
 using MongoApi.Services;
 using MongoApi.Services.Abstractions;
@@ -21,6 +22,9 @@ builder.Services.AddSingleton<IStoreService, StoreService>();
 builder.Services.AddSingleton<OrderService>();
 builder.Services.AddSingleton<DatabaseInitializer>();
 
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -31,6 +35,7 @@ builder.Services
     .AddMutationType<ProductMutation>()
     .AddTypeExtension<ProductExtensions>()
     .AddDataLoader<StoresByProductIdDataLoader>()
+    .AddErrorFilter<GraphQLErrorFilter>()
     .AddFiltering()
     .AddSorting()
     .AddProjections();
@@ -49,6 +54,8 @@ catch (Exception ex)
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
     logger.LogWarning(ex, "DatabaseInitializer failed at startup. Indexes may not be created.");
 }
+
+app.UseExceptionHandler(); // ← первым — ловит все необработанные исключения REST
 
 app.UseSwagger();
 app.UseSwaggerUI();

@@ -1,5 +1,6 @@
 using MongoDB.Driver;
 using MongoApi.Infrastructure;
+using MongoApi.Infrastructure.Exceptions;
 using MongoApi.Models;
 
 namespace MongoApi.Services;
@@ -37,10 +38,10 @@ public class OrderService
     {
         // Читаем продукт ДО транзакции — проверка что существует
         var product = await _products.Find(p => p.Id == productId).FirstOrDefaultAsync()
-            ?? throw new KeyNotFoundException($"Product {productId} not found");
+            ?? throw new NotFoundException("Product", productId);
 
         if (product.Stock < quantity)
-            throw new InvalidOperationException(
+            throw new ValidationException(
                 $"Not enough stock. Available: {product.Stock}, requested: {quantity}");
 
         var order = new Order
@@ -74,7 +75,7 @@ public class OrderService
 
             if (result.ModifiedCount == 0)
                 // Если сток стал недостаточным пока мы работали — откат
-                throw new InvalidOperationException("Stock was modified concurrently. Transaction aborted.");
+                throw new ConflictException("Stock was modified concurrently. Transaction aborted.");
 
             return order;
         });

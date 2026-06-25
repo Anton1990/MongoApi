@@ -37,19 +37,9 @@ public class ProductsController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> Update(string id, Product product)
     {
-        try
-        {
-            await _productService.UpdateAsync(id, product);
-            return NoContent();
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(ex.Message);
-        }
-        catch (Infrastructure.ConcurrencyException ex)
-        {
-            return Conflict(new { error = ex.Message });
-        }
+        await _productService.UpdateAsync(id, product);
+        return NoContent();
+        // NotFoundException → 404, ConflictException → 409 через GlobalExceptionHandler
     }
 
     [HttpDelete("{id}")]
