@@ -17,6 +17,7 @@ builder.Services.AddHostedService<OutboxPublisher>();
 builder.Services.AddSingleton<IProductService, ProductService>();
 builder.Services.AddSingleton<ICustomerService, CustomerService>();
 builder.Services.AddSingleton<ICategoryService, CategoryService>();
+builder.Services.AddSingleton<IStoreService, StoreService>();
 builder.Services.AddSingleton<OrderService>();
 builder.Services.AddSingleton<DatabaseInitializer>();
 
@@ -28,6 +29,8 @@ builder.Services
     .AddGraphQLServer()
     .AddQueryType<ProductQuery>()
     .AddMutationType<ProductMutation>()
+    .AddTypeExtension<ProductExtensions>()
+    .AddDataLoader<StoresByProductIdDataLoader>()
     .AddFiltering()
     .AddSorting()
     .AddProjections();

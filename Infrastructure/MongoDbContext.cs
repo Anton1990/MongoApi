@@ -39,5 +39,8 @@ public class MongoDbContext
     public IMongoCollection<OutboxMessage> Outbox =>
         _database.GetCollection<OutboxMessage>("outbox");
 
+    public IMongoCollection<Store> Stores =>
+        _database.GetCollection<Store>("stores");
+
     public IMongoDatabase Database => _database;
 }
