@@ -61,8 +61,11 @@ public class GeneralOperationType
             currentType = propertyInfo.PropertyType;
         }
 
-        var parsedValue = Convert.ChangeType(rawValue, propertyInfo!.PropertyType);
-        var right = Expression.Constant(parsedValue, propertyInfo.PropertyType);
+        var targetType = propertyInfo!.PropertyType;
+        object parsedValue = targetType.IsEnum
+            ? Enum.Parse(targetType, rawValue, ignoreCase: true)
+            : Convert.ChangeType(rawValue, targetType);
+        var right = Expression.Constant(parsedValue, targetType);
 
         return Arguments[op](propertyExpression, right);
     }

@@ -3,6 +3,22 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace MongoApi.Models;
 
+public enum ProductStatus
+{
+    Active,
+    Discontinued,
+    OutOfStock
+}
+
+public class Manufacturer
+{
+    [BsonElement("name")]
+    public string Name { get; set; } = null!;
+
+    [BsonElement("country")]
+    public string Country { get; set; } = null!;
+}
+
 public class Product
 {
     [BsonId]
@@ -40,4 +56,11 @@ public class Product
     /// </summary>
     [BsonElement("version")]
     public int Version { get; set; } = 0;
+
+    [BsonElement("manufacturer")]
+    public Manufacturer? Manufacturer { get; set; }
+
+    [BsonElement("status")]
+    [BsonRepresentation(BsonType.String)]
+    public ProductStatus Status { get; set; } = ProductStatus.Active;
 }

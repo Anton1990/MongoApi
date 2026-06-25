@@ -23,6 +23,7 @@ public class ProductQuery
     ///   }
     /// </summary>
     [UseOffsetPaging(MaxPageSize = 100, IncludeTotalCount = true)]
+    [UseProjection]
     [UseFiltering]
     [UseSorting]
     public IQueryable<Product> GetProducts([Service] ProductService service) =>

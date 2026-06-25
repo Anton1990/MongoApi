@@ -169,7 +169,10 @@ public class ProductService
         nameof(Product.Stock),
         nameof(Product.IsAvailable),
         nameof(Product.CategoryId),
-        nameof(Product.CreatedAt)
+        nameof(Product.CreatedAt),
+        $"{nameof(Product.Manufacturer)}.{nameof(Manufacturer.Country)}",
+        $"{nameof(Product.Manufacturer)}.{nameof(Manufacturer.Name)}",
+        nameof(Product.Status)
     };
 
     /// <summary>
