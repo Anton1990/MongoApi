@@ -3,7 +3,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace MongoApi.Models;
 
-public class Category
+public class Category : IDocument
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
@@ -18,5 +18,6 @@ public class Category
     [BsonElement("description")]
     public string? Description { get; set; }
 
+    [System.Text.Json.Serialization.JsonIgnore]
     public BsonDocument? Payload { get; set; }
 }

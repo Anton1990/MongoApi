@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using MongoApi.Models;
-using MongoApi.Services;
+using MongoApi.Models.Dtos;
+using MongoApi.Services.Abstractions;
 
 namespace MongoApi.Controllers;
 
@@ -8,16 +9,16 @@ namespace MongoApi.Controllers;
 [Route("api/[controller]")]
 public class CustomersController : ControllerBase
 {
-    private readonly CustomerService _customerService;
+    private readonly ICustomerService _customerService;
 
-    public CustomersController(CustomerService customerService)
+    public CustomersController(ICustomerService customerService)
     {
         _customerService = customerService;
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<Customer>>> GetAll() =>
-        Ok(await _customerService.GetAllAsync());
+    public async Task<IActionResult> GetAll([FromQuery] QueryRequest request) =>
+        Ok(await _customerService.SearchAsync(request));
 
     [HttpGet("{id}")]
     public async Task<ActionResult<Customer>> GetById(string id)

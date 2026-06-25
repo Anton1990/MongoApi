@@ -1,8 +1,10 @@
+using System.Text.Json.Serialization;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace MongoApi.Models;
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ProductStatus
 {
     Active,
@@ -19,7 +21,7 @@ public class Manufacturer
     public string Country { get; set; } = null!;
 }
 
-public class Product
+public class Product : IDocument
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]

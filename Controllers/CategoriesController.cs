@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using MongoApi.Models;
-using MongoApi.Services;
+using MongoApi.Models.Dtos;
+using MongoApi.Services.Abstractions;
 
 namespace MongoApi.Controllers;
 
@@ -8,16 +9,16 @@ namespace MongoApi.Controllers;
 [Route("api/[controller]")]
 public class CategoriesController : ControllerBase
 {
-    private readonly CategoryService _categoryService;
+    private readonly ICategoryService _categoryService;
 
-    public CategoriesController(CategoryService categoryService)
+    public CategoriesController(ICategoryService categoryService)
     {
         _categoryService = categoryService;
     }
 
     [HttpGet]
-    public async Task<ActionResult<List<Category>>> GetAll() =>
-        Ok(await _categoryService.GetAllAsync());
+    public async Task<IActionResult> GetAll([FromQuery] QueryRequest request) =>
+        Ok(await _categoryService.SearchAsync(request));
 
     [HttpGet("{id}")]
     public async Task<ActionResult<Category>> GetById(string id)

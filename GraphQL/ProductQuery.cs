@@ -1,6 +1,6 @@
 using HotChocolate.Data;
 using MongoApi.Models;
-using MongoApi.Services;
+using MongoApi.Services.Abstractions;
 
 namespace MongoApi.GraphQL;
 
@@ -26,7 +26,7 @@ public class ProductQuery
     [UseProjection]
     [UseFiltering]
     [UseSorting]
-    public IQueryable<Product> GetProducts([Service] ProductService service) =>
+    public IQueryable<Product> GetProducts([Service] IProductService service) =>
         service.GetQueryable();
 
     /// <summary>
@@ -34,6 +34,6 @@ public class ProductQuery
     ///
     /// query { product(id: "abc123") { name price } }
     /// </summary>
-    public async Task<Product?> GetProduct(string id, [Service] ProductService service) =>
+    public async Task<Product?> GetProduct(string id, [Service] IProductService service) =>
         await service.GetByIdAsync(id);
 }

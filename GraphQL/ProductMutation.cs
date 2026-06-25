@@ -1,5 +1,5 @@
 using MongoApi.Models;
-using MongoApi.Services;
+using MongoApi.Services.Abstractions;
 
 namespace MongoApi.GraphQL;
 
@@ -14,7 +14,7 @@ public class ProductMutation
     ///   }
     /// }
     /// </summary>
-    public async Task<Product> CreateProduct(Product input, [Service] ProductService service) =>
+    public async Task<Product> CreateProduct(Product input, [Service] IProductService service) =>
         await service.CreateAsync(input);
 
     /// <summary>
@@ -22,6 +22,6 @@ public class ProductMutation
     ///
     /// mutation { deleteProduct(id: "abc123") }
     /// </summary>
-    public async Task<bool> DeleteProduct(string id, [Service] ProductService service) =>
+    public async Task<bool> DeleteProduct(string id, [Service] IProductService service) =>
         await service.DeleteAsync(id);
 }

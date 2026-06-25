@@ -2,6 +2,7 @@ using MongoApi.GraphQL;
 using MongoApi.Infrastructure;
 using MongoApi.Messaging;
 using MongoApi.Services;
+using MongoApi.Services.Abstractions;
 using MongoApi.Settings;
 using Prometheus;
 
@@ -13,9 +14,9 @@ builder.Services.Configure<MongoDbSettings>(
 builder.Services.AddSingleton<MongoDbContext>();
 builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
 builder.Services.AddHostedService<OutboxPublisher>();
-builder.Services.AddSingleton<ProductService>();
-builder.Services.AddSingleton<CustomerService>();
-builder.Services.AddSingleton<CategoryService>();
+builder.Services.AddSingleton<IProductService, ProductService>();
+builder.Services.AddSingleton<ICustomerService, CustomerService>();
+builder.Services.AddSingleton<ICategoryService, CategoryService>();
 builder.Services.AddSingleton<OrderService>();
 builder.Services.AddSingleton<DatabaseInitializer>();
 

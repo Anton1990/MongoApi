@@ -60,6 +60,20 @@ public class DatabaseInitializer
             new CreateIndexModel<Product>(
                 Builders<Product>.IndexKeys.Ascending("manufacturer.country"),
                 new CreateIndexOptions { Name = "idx_product_manufacturer_country" }
+            ),
+            new CreateIndexModel<Product>(
+                Builders<Product>.IndexKeys.Descending(p => p.CreatedAt),
+                new CreateIndexOptions { Name = "idx_product_createdAt" }
+            ),
+            // Составной индекс для типичного запроса: filter(status,isAvailable,price) + sort(price,name)
+            // ESR: Equality(status,isAvailable) → Sort+Range(price) → Sort(name)
+            new CreateIndexModel<Product>(
+                Builders<Product>.IndexKeys
+                    .Ascending(p => p.Status)
+                    .Ascending(p => p.IsAvailable)
+                    .Descending(p => p.Price)
+                    .Ascending(p => p.Name),
+                new CreateIndexOptions { Name = "idx_product_status_available_price_name" }
             )
         };
 
