@@ -1,5 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.OpenApi;
 using MongoApi.GraphQL;
 using MongoApi.Infrastructure;
+using MongoApi.Infrastructure.Authentication;
+using MongoApi.Infrastructure.Authorization;
 using MongoApi.Infrastructure.Exceptions;
 using MongoApi.Messaging;
 using MongoApi.Services;
@@ -11,6 +15,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.Configure<MongoDbSettings>(
     builder.Configuration.GetSection("MongoDbSettings"));
+builder.Services.Configure<JwtSettings>(
+    builder.Configuration.GetSection("JwtSettings"));
 
 builder.Services.AddSingleton<MongoDbContext>();
 builder.Services.AddSingleton<IRabbitMqPublisher, RabbitMqPublisher>();
@@ -22,12 +28,50 @@ builder.Services.AddSingleton<IStoreService, StoreService>();
 builder.Services.AddSingleton<OrderService>();
 builder.Services.AddSingleton<DatabaseInitializer>();
 
+// Auth: JWT Bearer → ClaimsPrincipal
+builder.Services.AddSingleton<ITokenService, TokenService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddAuthentication("HeaderAuth")
+    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, HeaderAuthHandler>(
+        "HeaderAuth", null);
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(Permissions.OrgMember, p =>
+        p.Requirements.Add(new OrgPermissionRequirement(Permissions.OrgMember)));
+    options.AddPolicy(Permissions.OrgAdmin, p =>
+        p.Requirements.Add(new OrgPermissionRequirement(Permissions.OrgAdmin)));
+});
+
+builder.Services.AddScoped<IAuthorizationHandler, OrgPermissionHandler>();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddSingleton<IRoleService, RoleService>();
+builder.Services.AddSingleton<IUserService, UserService>();
+builder.Services.AddScoped<IOrganizationService, OrganizationService>();
+
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name         = "Authorization",
+        Type         = SecuritySchemeType.Http,  // Http → Swagger сам добавляет "Bearer " префикс
+        Scheme       = "bearer",
+        BearerFormat = "JWT",
+        In           = ParameterLocation.Header,
+        Description  = "Вставьте токен без 'Bearer'. Swagger добавит префикс автоматически."
+    });
+
+    options.AddSecurityRequirement(doc => new OpenApiSecurityRequirement
+    {
+        { new OpenApiSecuritySchemeReference("Bearer", doc), new List<string>() }
+    });
+});
 
 builder.Services
     .AddGraphQLServer()
@@ -56,6 +100,9 @@ catch (Exception ex)
 }
 
 app.UseExceptionHandler(); // ← первым — ловит все необработанные исключения REST
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseSwagger();
 app.UseSwaggerUI();

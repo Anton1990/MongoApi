@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using MongoApi.Infrastructure.Exceptions;
 using MongoApi.Models;
 using MongoApi.Models.Dtos;
 using MongoApi.Services.Abstractions;
@@ -23,8 +24,9 @@ public class ProductsController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<Product>> GetById(string id)
     {
-        var product = await _productService.GetByIdAsync(id);
-        return product is null ? NotFound() : Ok(product);
+        var product = await _productService.GetByIdAsync(id)
+            ?? throw new NotFoundException("Product", id);
+        return Ok(product);
     }
 
     [HttpPost]
@@ -46,6 +48,7 @@ public class ProductsController : ControllerBase
     public async Task<IActionResult> Delete(string id)
     {
         var deleted = await _productService.DeleteAsync(id);
-        return deleted ? NoContent() : NotFound();
+        if (!deleted) throw new NotFoundException("Product", id);
+        return NoContent();
     }
 }

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Identity;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using MongoApi.Models;
@@ -19,9 +20,53 @@ public class DatabaseInitializer
     {
         await CreateProductIndexesAsync();
         await CreateCustomerIndexesAsync();
+        await CreateUserIndexesAsync();
+        await CreateRoleIndexesAsync();
+        await CreateUserOrganizationRoleIndexesAsync();
         await MigrateProductStatusAsync();
+        await SeedRolesAsync();
         if (_env.IsDevelopment())
+        {
+            await SeedDevUserAsync();
             await EnableProfilerAsync();
+        }
+    }
+
+    /// <summary>Роли — нужны в любом окружении. Idempotent.</summary>
+    private async Task SeedRolesAsync()
+    {
+        var collection = _db.GetCollection<Role>("roles");
+        var names = new[] { "Admin", "Member", "Viewer" };
+
+        foreach (var name in names)
+        {
+            var exists = await collection.Find(r => r.Name == name).AnyAsync();
+            if (!exists)
+                await collection.InsertOneAsync(new Role { Name = name });
+        }
+    }
+
+    /// <summary>Тестовый пользователь — только в Development. Idempotent.</summary>
+    private async Task SeedDevUserAsync()
+    {
+        var collection = _db.GetCollection<User>("users");
+        const string email = "admin@test.com";
+
+        var exists = await collection.Find(u => u.Email == email).AnyAsync();
+        if (exists) return;
+
+        var hasher = new PasswordHasher<string>();
+        await collection.InsertOneAsync(new User
+        {
+            Username     = "admin",
+            FirstName    = "Admin",
+            LastName     = "Dev",
+            Email        = email,
+            PasswordHash = hasher.HashPassword(email, "admin123"),
+            IsActive     = true
+        });
+
+        Console.WriteLine("[Seed] Dev user created: admin@test.com / admin123");
     }
 
     private async Task EnableProfilerAsync()
@@ -93,6 +138,63 @@ public class DatabaseInitializer
             new CreateIndexModel<Customer>(
                 Builders<Customer>.IndexKeys.Ascending(c => c.RegisteredAt),
                 new CreateIndexOptions { Name = "idx_customer_registered" }
+            )
+        };
+
+        await collection.Indexes.CreateManyAsync(indexes);
+    }
+
+    private async Task CreateUserIndexesAsync()
+    {
+        var collection = _db.GetCollection<User>("users");
+
+        await collection.Indexes.CreateManyAsync(new[]
+        {
+            new CreateIndexModel<User>(
+                Builders<User>.IndexKeys.Ascending(u => u.Email),
+                new CreateIndexOptions { Unique = true, Name = "idx_user_email_unique" }
+            ),
+            new CreateIndexModel<User>(
+                Builders<User>.IndexKeys.Ascending(u => u.Username),
+                new CreateIndexOptions { Unique = true, Name = "idx_user_username_unique" }
+            )
+        });
+    }
+
+    private async Task CreateRoleIndexesAsync()
+    {
+        var collection = _db.GetCollection<Role>("roles");
+
+        await collection.Indexes.CreateOneAsync(
+            new CreateIndexModel<Role>(
+                Builders<Role>.IndexKeys.Ascending(r => r.Name),
+                new CreateIndexOptions { Unique = true, Name = "idx_role_name_unique" }
+            )
+        );
+    }
+
+    private async Task CreateUserOrganizationRoleIndexesAsync()
+    {
+        var collection = _db.GetCollection<UserOrganizationRole>("user_organization_roles");
+
+        var indexes = new[]
+        {
+            // Compound unique: один пользователь — одна запись в организации
+            new CreateIndexModel<UserOrganizationRole>(
+                Builders<UserOrganizationRole>.IndexKeys
+                    .Ascending(u => u.UserId)
+                    .Ascending(u => u.OrganizationId),
+                new CreateIndexOptions { Unique = true, Name = "idx_uor_user_org_unique" }
+            ),
+            // Быстрый поиск: "все члены организации"
+            new CreateIndexModel<UserOrganizationRole>(
+                Builders<UserOrganizationRole>.IndexKeys.Ascending(u => u.OrganizationId),
+                new CreateIndexOptions { Name = "idx_uor_org" }
+            ),
+            // Быстрый поиск: "мои организации"
+            new CreateIndexModel<UserOrganizationRole>(
+                Builders<UserOrganizationRole>.IndexKeys.Ascending(u => u.UserId),
+                new CreateIndexOptions { Name = "idx_uor_user" }
             )
         };
 

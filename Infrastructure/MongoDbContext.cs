@@ -42,5 +42,17 @@ public class MongoDbContext
     public IMongoCollection<Store> Stores =>
         _database.GetCollection<Store>("stores");
 
+    public IMongoCollection<Organization> Organizations =>
+        _database.GetCollection<Organization>("organizations");
+
+    public IMongoCollection<Role> Roles =>
+        _database.GetCollection<Role>("roles");
+
+    public IMongoCollection<User> Users =>
+        _database.GetCollection<User>("users");
+
+    public IMongoCollection<UserOrganizationRole> UserOrganizationRoles =>
+        _database.GetCollection<UserOrganizationRole>("user_organization_roles");
+
     public IMongoDatabase Database => _database;
 }
