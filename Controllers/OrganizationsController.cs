@@ -46,7 +46,7 @@ public class OrganizationsController : ControllerBase
             Description = request.Description
         };
 
-        var created = await _orgService.CreateAsync(org, userId, request.AdminRoleId);
+        var created = await _orgService.CreateAsync(org, userId);
         return CreatedAtAction(nameof(GetById), new { orgId = created.Id }, created);
     }
 

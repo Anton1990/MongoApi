@@ -48,10 +48,8 @@ public class OrganizationService : IOrganizationService
             ?? throw new NotFoundException("Organization", orgId);
     }
 
-    public async Task<Organization> CreateAsync(Organization org, string creatorUserId, string adminRoleId)
+    public async Task<Organization> CreateAsync(Organization org, string creatorUserId)
     {
-        var roleName = await GetRoleNameAsync(adminRoleId);
-
         await _orgs.InsertOneAsync(org);
 
         await _userResourceRoles.InsertOneAsync(new UserResourceRole
@@ -59,7 +57,7 @@ public class OrganizationService : IOrganizationService
             UserId       = creatorUserId,
             ResourceId   = org.Id!,
             ResourceType = ResourceType.Organization,
-            RoleName     = roleName
+            RoleName     = Roles.Admin
         });
 
         return org;

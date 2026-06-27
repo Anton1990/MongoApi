@@ -32,6 +32,7 @@ public class RolesController : ControllerBase
     }
 
     [HttpPost]
+    [AllowAnonymous]
     public async Task<IActionResult> Create(Role role)
     {
         var created = await _roleService.CreateAsync(role);
