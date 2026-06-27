@@ -51,8 +51,8 @@ public class MongoDbContext
     public IMongoCollection<User> Users =>
         _database.GetCollection<User>("users");
 
-    public IMongoCollection<UserOrganizationRole> UserOrganizationRoles =>
-        _database.GetCollection<UserOrganizationRole>("user_organization_roles");
+    public IMongoCollection<UserResourceRole> UserResourceRoles =>
+        _database.GetCollection<UserResourceRole>("user_resource_roles");
 
     public IMongoDatabase Database => _database;
 }

@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.OpenApi;
 using MongoApi.GraphQL;
 using MongoApi.Infrastructure;
@@ -36,15 +35,9 @@ builder.Services.AddAuthentication("HeaderAuth")
     .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, HeaderAuthHandler>(
         "HeaderAuth", null);
 
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy(Permissions.OrgMember, p =>
-        p.Requirements.Add(new OrgPermissionRequirement(Permissions.OrgMember)));
-    options.AddPolicy(Permissions.OrgAdmin, p =>
-        p.Requirements.Add(new OrgPermissionRequirement(Permissions.OrgAdmin)));
-});
+builder.Services.AddAuthorization();
 
-builder.Services.AddScoped<IAuthorizationHandler, OrgPermissionHandler>();
+builder.Services.AddScoped<IPermissionService, PermissionService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddSingleton<IRoleService, RoleService>();
 builder.Services.AddSingleton<IUserService, UserService>();

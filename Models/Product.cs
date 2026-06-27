@@ -65,4 +65,9 @@ public class Product : IDocument
     [BsonElement("status")]
     [BsonRepresentation(BsonType.String)]
     public ProductStatus Status { get; set; } = ProductStatus.Active;
+
+    /// <summary>Организация-владелец продукта. Null — продукт из общего каталога.</summary>
+    [BsonElement("organizationId")]
+    [BsonRepresentation(BsonType.ObjectId)]
+    public string? OrganizationId { get; set; }
 }

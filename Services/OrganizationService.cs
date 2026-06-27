@@ -1,5 +1,6 @@
 using MongoDB.Driver;
 using MongoApi.Infrastructure;
+using MongoApi.Infrastructure.Authorization;
 using MongoApi.Infrastructure.Exceptions;
 using MongoApi.Models;
 using MongoApi.Models.Dtos;
@@ -10,30 +11,30 @@ namespace MongoApi.Services;
 public class OrganizationService : IOrganizationService
 {
     private readonly IMongoCollection<Organization> _orgs;
-    private readonly IMongoCollection<UserOrganizationRole> _userOrgRoles;
+    private readonly IMongoCollection<UserResourceRole> _userResourceRoles;
+    private readonly IMongoCollection<Role> _roles;
 
     public OrganizationService(MongoDbContext context)
     {
-        _orgs = context.Organizations;
-        _userOrgRoles = context.UserOrganizationRoles;
+        _orgs              = context.Organizations;
+        _userResourceRoles = context.UserResourceRoles;
+        _roles             = context.Roles;
     }
 
-    /// <summary>Возвращает только организации где userId является участником.</summary>
     public async Task<PagedResult<Organization>> GetForUserAsync(string userId, QueryRequest request)
     {
         var pageSize = Math.Clamp(request.PageSize, 1, 100);
-        var page = Math.Max(1, request.Page);
+        var page     = Math.Max(1, request.Page);
 
-        // Находим все orgId где участвует пользователь
-        var memberships = await _userOrgRoles
-            .Find(m => m.UserId == userId)
+        var memberships = await _userResourceRoles
+            .Find(m => m.UserId == userId && m.ResourceType == ResourceType.Organization)
             .ToListAsync();
 
-        var orgIds = memberships.Select(m => m.OrganizationId).ToList();
+        var orgIds = memberships.Select(m => m.ResourceId).ToList();
 
         var filter = Builders<Organization>.Filter.In(o => o.Id, orgIds);
-        var total = await _orgs.CountDocumentsAsync(filter);
-        var items = await _orgs.Find(filter)
+        var total  = await _orgs.CountDocumentsAsync(filter);
+        var items  = await _orgs.Find(filter)
             .Skip((page - 1) * pageSize)
             .Limit(pageSize)
             .ToListAsync();
@@ -47,51 +48,67 @@ public class OrganizationService : IOrganizationService
             ?? throw new NotFoundException("Organization", orgId);
     }
 
-    /// <summary>Создаёт организацию и назначает создателя Admin'ом.</summary>
     public async Task<Organization> CreateAsync(Organization org, string creatorUserId, string adminRoleId)
     {
+        var roleName = await GetRoleNameAsync(adminRoleId);
+
         await _orgs.InsertOneAsync(org);
 
-        await _userOrgRoles.InsertOneAsync(new UserOrganizationRole
+        await _userResourceRoles.InsertOneAsync(new UserResourceRole
         {
-            UserId = creatorUserId,
-            OrganizationId = org.Id!,
-            RoleId = adminRoleId
+            UserId       = creatorUserId,
+            ResourceId   = org.Id!,
+            ResourceType = ResourceType.Organization,
+            RoleName     = roleName
         });
 
         return org;
     }
 
-    public async Task<List<UserOrganizationRole>> GetMembersAsync(string orgId)
+    public async Task<List<UserResourceRole>> GetMembersAsync(string orgId)
     {
-        return await _userOrgRoles
-            .Find(m => m.OrganizationId == orgId)
+        return await _userResourceRoles
+            .Find(m => m.ResourceId == orgId && m.ResourceType == ResourceType.Organization)
             .ToListAsync();
     }
 
     public async Task AddMemberAsync(string orgId, string userId, string roleId)
     {
-        var exists = await _userOrgRoles
-            .Find(m => m.OrganizationId == orgId && m.UserId == userId)
+        var exists = await _userResourceRoles
+            .Find(m => m.ResourceId == orgId
+                    && m.ResourceType == ResourceType.Organization
+                    && m.UserId == userId)
             .AnyAsync();
 
         if (exists)
             throw new ConflictException($"User '{userId}' is already a member of this organization.");
 
-        await _userOrgRoles.InsertOneAsync(new UserOrganizationRole
+        var roleName = await GetRoleNameAsync(roleId);
+
+        await _userResourceRoles.InsertOneAsync(new UserResourceRole
         {
-            UserId = userId,
-            OrganizationId = orgId,
-            RoleId = roleId
+            UserId       = userId,
+            ResourceId   = orgId,
+            ResourceType = ResourceType.Organization,
+            RoleName     = roleName
         });
     }
 
     public async Task RemoveMemberAsync(string orgId, string userId)
     {
-        var result = await _userOrgRoles
-            .DeleteOneAsync(m => m.OrganizationId == orgId && m.UserId == userId);
+        var result = await _userResourceRoles
+            .DeleteOneAsync(m => m.ResourceId == orgId
+                             && m.ResourceType == ResourceType.Organization
+                             && m.UserId == userId);
 
         if (result.DeletedCount == 0)
             throw new NotFoundException($"User '{userId}' is not a member of this organization.");
+    }
+
+    private async Task<string> GetRoleNameAsync(string roleId)
+    {
+        var role = await _roles.Find(r => r.Id == roleId).FirstOrDefaultAsync()
+            ?? throw new NotFoundException("Role", roleId);
+        return role.Name;
     }
 }

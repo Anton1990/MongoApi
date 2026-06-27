@@ -22,7 +22,7 @@ public class DatabaseInitializer
         await CreateCustomerIndexesAsync();
         await CreateUserIndexesAsync();
         await CreateRoleIndexesAsync();
-        await CreateUserOrganizationRoleIndexesAsync();
+        await CreateUserResourceRoleIndexesAsync();
         await MigrateProductStatusAsync();
         await SeedRolesAsync();
         if (_env.IsDevelopment())
@@ -173,28 +173,33 @@ public class DatabaseInitializer
         );
     }
 
-    private async Task CreateUserOrganizationRoleIndexesAsync()
+    private async Task CreateUserResourceRoleIndexesAsync()
     {
-        var collection = _db.GetCollection<UserOrganizationRole>("user_organization_roles");
+        var collection = _db.GetCollection<UserResourceRole>("user_resource_roles");
 
         var indexes = new[]
         {
-            // Compound unique: один пользователь — одна запись в организации
-            new CreateIndexModel<UserOrganizationRole>(
-                Builders<UserOrganizationRole>.IndexKeys
+            // Compound unique: один пользователь — одна роль в ресурсе
+            new CreateIndexModel<UserResourceRole>(
+                Builders<UserResourceRole>.IndexKeys
                     .Ascending(u => u.UserId)
-                    .Ascending(u => u.OrganizationId),
-                new CreateIndexOptions { Unique = true, Name = "idx_uor_user_org_unique" }
+                    .Ascending(u => u.ResourceId)
+                    .Ascending(u => u.ResourceType),
+                new CreateIndexOptions { Unique = true, Name = "idx_urr_user_resource_unique" }
             ),
-            // Быстрый поиск: "все члены организации"
-            new CreateIndexModel<UserOrganizationRole>(
-                Builders<UserOrganizationRole>.IndexKeys.Ascending(u => u.OrganizationId),
-                new CreateIndexOptions { Name = "idx_uor_org" }
+            // Быстрый поиск при проверке прав: userId + resourceId + resourceType
+            new CreateIndexModel<UserResourceRole>(
+                Builders<UserResourceRole>.IndexKeys
+                    .Ascending(u => u.ResourceId)
+                    .Ascending(u => u.ResourceType),
+                new CreateIndexOptions { Name = "idx_urr_resource" }
             ),
-            // Быстрый поиск: "мои организации"
-            new CreateIndexModel<UserOrganizationRole>(
-                Builders<UserOrganizationRole>.IndexKeys.Ascending(u => u.UserId),
-                new CreateIndexOptions { Name = "idx_uor_user" }
+            // Быстрый поиск: "мои ресурсы по типу"
+            new CreateIndexModel<UserResourceRole>(
+                Builders<UserResourceRole>.IndexKeys
+                    .Ascending(u => u.UserId)
+                    .Ascending(u => u.ResourceType),
+                new CreateIndexOptions { Name = "idx_urr_user_type" }
             )
         };
 
