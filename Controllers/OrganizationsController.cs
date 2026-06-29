@@ -92,6 +92,7 @@ public class OrganizationsController : ControllerBase
             Stock          = request.Stock,
             CategoryId     = request.CategoryId,
             OrganizationId = orgId,
+            CreatedBy      = _currentUser.GetUserId(),
             Manufacturer   = request.ManufacturerName is not null
                 ? new Manufacturer
                 {
@@ -160,6 +161,19 @@ public class OrganizationsController : ControllerBase
         };
 
         await _productService.UpdateAsync(productId, updated);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Удалить продукт организации.
+    /// Разрешено: создатель продукта ИЛИ Admin организации.
+    /// </summary>
+    [HttpDelete("{orgId}/products/{productId}")]
+    [AuthorizePermission(Permissions.DeleteProduct, "productId", "orgId")]
+    public async Task<IActionResult> DeleteProduct(string orgId, string productId)
+    {
+        var deleted = await _productService.DeleteAsync(productId);
+        if (!deleted) throw new NotFoundException("Product", productId);
         return NoContent();
     }
 }

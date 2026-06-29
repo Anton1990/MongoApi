@@ -13,11 +13,11 @@ public class CurrentUserService : ICurrentUserService
 
     public string GetUserId()
     {
-        // Читает из ClaimsPrincipal (заполняется HeaderAuthHandler или JWT)
+        // Читает claim "sub" из JWT, выданного через POST /api/auth/login
         var userId = _accessor.HttpContext?.User.FindFirst("sub")?.Value;
 
         if (string.IsNullOrEmpty(userId))
-            throw new UnauthorizedException("Authentication required. Provide X-User-Id header.");
+            throw new UnauthorizedException("Authentication required. Provide Bearer token.");
 
         return userId;
     }

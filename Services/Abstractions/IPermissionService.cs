@@ -11,4 +11,14 @@ public interface IPermissionService
         string resourceId,
         string resourceType,
         string requiredRole);
+
+    /// <summary>
+    /// Проверяет специфическое разрешение с кастомной логикой.
+    /// Используется из AuthorizePermissionAttribute.
+    /// resourceIds — route-параметры в том же порядке что указаны в атрибуте.
+    /// </summary>
+    Task<bool> CheckPermissionAsync(
+        string userId,
+        string permission,
+        string[] resourceIds);
 }

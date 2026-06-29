@@ -70,4 +70,8 @@ public class Product : IDocument
     [BsonElement("organizationId")]
     [BsonRepresentation(BsonType.ObjectId)]
     public string? OrganizationId { get; set; }
+
+    /// <summary>userId создателя продукта.</summary>
+    [BsonElement("createdBy")]
+    public string? CreatedBy { get; set; }
 }

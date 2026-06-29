@@ -53,11 +53,11 @@ builder.Services.AddSwaggerGen(options =>
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name         = "Authorization",
-        Type         = SecuritySchemeType.Http,  // Http → Swagger сам добавляет "Bearer " префикс
+        Type         = SecuritySchemeType.Http,
         Scheme       = "bearer",
         BearerFormat = "JWT",
         In           = ParameterLocation.Header,
-        Description  = "Вставьте токен без 'Bearer'. Swagger добавит префикс автоматически."
+        Description  = "Вставьте JWT токен. Получить через POST /api/auth/login."
     });
 
     options.AddSecurityRequirement(doc => new OpenApiSecurityRequirement
