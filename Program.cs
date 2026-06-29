@@ -69,10 +69,13 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services
     .AddGraphQLServer()
     .AddQueryType<ProductQuery>()
+    .AddTypeExtension<OrganizationQuery>()
     .AddMutationType<ProductMutation>()
+    .AddTypeExtension<OrganizationMutation>()
     .AddTypeExtension<ProductExtensions>()
     .AddDataLoader<StoresByProductIdDataLoader>()
     .AddErrorFilter<GraphQLErrorFilter>()
+    .AddAuthorization()
     .AddFiltering()
     .AddSorting()
     .AddProjections();

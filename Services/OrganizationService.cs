@@ -8,49 +8,47 @@ using MongoApi.Services.Abstractions;
 
 namespace MongoApi.Services;
 
-public class OrganizationService : IOrganizationService
+public class OrganizationService : BaseMongoService<Organization>, IOrganizationService
 {
-    private readonly IMongoCollection<Organization> _orgs;
     private readonly IMongoCollection<UserResourceRole> _userResourceRoles;
-    private readonly IMongoCollection<Role> _roles;
+    private readonly IMongoCollection<Role>             _roles;
 
     public OrganizationService(MongoDbContext context)
+        : base(context.Organizations)
     {
-        _orgs              = context.Organizations;
         _userResourceRoles = context.UserResourceRoles;
         _roles             = context.Roles;
     }
 
+    protected override HashSet<string> AllowedFilterFields => new()
+    {
+        nameof(Organization.Name),
+        nameof(Organization.Description),
+        nameof(Organization.CreatedAt)
+    };
+
     public async Task<PagedResult<Organization>> GetForUserAsync(string userId, QueryRequest request)
     {
-        var pageSize = Math.Clamp(request.PageSize, 1, 100);
-        var page     = Math.Max(1, request.Page);
-
         var memberships = await _userResourceRoles
             .Find(m => m.UserId == userId && m.ResourceType == ResourceType.Organization)
             .ToListAsync();
 
         var orgIds = memberships.Select(m => m.ResourceId).ToList();
 
-        var filter = Builders<Organization>.Filter.In(o => o.Id, orgIds);
-        var total  = await _orgs.CountDocumentsAsync(filter);
-        var items  = await _orgs.Find(filter)
-            .Skip((page - 1) * pageSize)
-            .Limit(pageSize)
-            .ToListAsync();
-
-        return new PagedResult<Organization>(items, page, pageSize, (int)total);
+        return await SearchAsync(request, o => orgIds.Contains(o.Id!));
     }
 
-    public async Task<Organization> GetByIdAsync(string orgId)
+#pragma warning disable CS8613 // Nullability narrowing is intentional: throws instead of returning null
+    public new async Task<Organization> GetByIdAsync(string orgId)
     {
-        return await _orgs.Find(o => o.Id == orgId).FirstOrDefaultAsync()
+        return await base.GetByIdAsync(orgId)
             ?? throw new NotFoundException("Organization", orgId);
     }
+#pragma warning restore CS8613
 
     public async Task<Organization> CreateAsync(Organization org, string creatorUserId)
     {
-        await _orgs.InsertOneAsync(org);
+        await _collection.InsertOneAsync(org);
 
         await _userResourceRoles.InsertOneAsync(new UserResourceRole
         {

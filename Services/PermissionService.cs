@@ -71,13 +71,17 @@ public class PermissionService : IPermissionService
         var isAdmin = await HasPermissionAsync(userId, orgId, ResourceType.Organization, Roles.Admin);
         if (!isAdmin) return false;
 
-        // Нельзя удалить последнего Admin
+        // Если target не admin — удалять можно всегда
+        var targetIsAdmin = await HasPermissionAsync(targetUserId, orgId, ResourceType.Organization, Roles.Admin);
+        if (!targetIsAdmin) return true;
+
+        // Если target — admin, разрешаем только если admin-ов больше одного
         var adminCount = await _userResourceRoles.CountDocumentsAsync(x =>
             x.ResourceId   == orgId                    &&
             x.ResourceType == ResourceType.Organization &&
             x.RoleName     == Roles.Admin);
 
-        return !(adminCount == 1 && targetUserId == userId);
+        return adminCount > 1;
     }
 
     private static bool RoleSatisfies(string actual, string required) => required switch
