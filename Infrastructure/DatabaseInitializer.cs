@@ -23,7 +23,6 @@ public class DatabaseInitializer
         await CreateUserIndexesAsync();
         await CreateRoleIndexesAsync();
         await CreateUserResourceRoleIndexesAsync();
-        await MigrateProductStatusAsync();
         await SeedRolesAsync();
         if (_env.IsDevelopment())
         {
@@ -74,18 +73,6 @@ public class DatabaseInitializer
         // Профилируем все запросы (slowms: 0) — только в Development
         await _db.RunCommandAsync<BsonDocument>(
             new BsonDocument { { "profile", 1 }, { "slowms", 0 } });
-    }
-
-    private async Task MigrateProductStatusAsync()
-    {
-        var collection = _db.GetCollection<Product>("products");
-
-        var result = await collection.UpdateManyAsync(
-            Builders<Product>.Filter.Exists(p => p.Status, false),
-            Builders<Product>.Update.Set(p => p.Status, ProductStatus.Active));
-
-        if (result.ModifiedCount > 0)
-            Console.WriteLine($"[Migration] Set status=Active on {result.ModifiedCount} products.");
     }
 
     private async Task CreateProductIndexesAsync()

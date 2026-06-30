@@ -4,6 +4,7 @@ using MongoApi.Infrastructure;
 using MongoApi.Infrastructure.Authentication;
 using MongoApi.Infrastructure.Authorization;
 using MongoApi.Infrastructure.Exceptions;
+using MongoApi.Infrastructure.Migrations;
 using MongoApi.Messaging;
 using MongoApi.Services;
 using MongoApi.Services.Abstractions;
@@ -26,6 +27,7 @@ builder.Services.AddSingleton<ICategoryService, CategoryService>();
 builder.Services.AddSingleton<IStoreService, StoreService>();
 builder.Services.AddSingleton<OrderService>();
 builder.Services.AddSingleton<DatabaseInitializer>();
+builder.Services.AddSingleton<MigrationRunner>();
 
 // Auth: JWT Bearer → ClaimsPrincipal
 builder.Services.AddSingleton<ITokenService, TokenService>();
@@ -81,6 +83,35 @@ builder.Services
     .AddProjections();
 
 var app = builder.Build();
+
+// ── migrate CLI ──────────────────────────────────────────────────────────────
+// dotnet run -- migrate up
+// dotnet run -- migrate down [steps]
+// dotnet run -- migrate status
+if (args.Length >= 2 && args[0] == "migrate")
+{
+    var runner = app.Services.GetRequiredService<MigrationRunner>();
+    switch (args[1])
+    {
+        case "up":
+            Console.WriteLine("Running migrations...");
+            await runner.UpAsync();
+            break;
+        case "down":
+            var steps = args.Length >= 3 && int.TryParse(args[2], out var n) ? n : 1;
+            Console.WriteLine($"Rolling back {steps} migration(s)...");
+            await runner.DownAsync(steps);
+            break;
+        case "status":
+            await runner.StatusAsync();
+            break;
+        default:
+            Console.WriteLine("Usage: migrate <up|down [steps]|status>");
+            break;
+    }
+    return;
+}
+// ────────────────────────────────────────────────────────────────────────────
 
 var initializer = app.Services.GetRequiredService<DatabaseInitializer>();
 try
